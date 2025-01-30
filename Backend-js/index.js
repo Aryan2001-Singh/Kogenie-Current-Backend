@@ -5,15 +5,19 @@ const fs = require('fs');
 const path = require('path'); 
 const puppeteer = require('puppeteer');
 const cheerio = require('cheerio');
+const connectDB = require("./config/db"); // ✅ Import DB Connection
+const adRoutes = require("./routes/adRoutes");
 require('dotenv').config();
-
+connectDB();
 const app = express();
 app.use(express.json());
 app.use(
   cors({
     origin: ['https://www.kogenie.com', 'https://kogenie.com', 'http://localhost:3000'],
-  })
+  }),
+  
 );
+app.use("/api/ads", adRoutes); 
 
 // Function to get target description
 function getTargetDescription(gender, ageGroup) {
