@@ -6,9 +6,9 @@ const router = express.Router();
 // ✅ Route: Store Ad Data (No Response to Frontend)
 router.post("/store", async (req, res) => {
   try {
-    const { brandName, productName, productDescription, targetAudience, uniqueSellingPoints, adCopy } = req.body;
+    const { brandName, productName, productDescription, targetAudience, uniqueSellingPoints, adCopy, userEmail } = req.body;
 
-    if (!brandName || !productName || !productDescription || !targetAudience || !uniqueSellingPoints || !adCopy) {
+    if (!brandName || !productName || !productDescription || !targetAudience || !uniqueSellingPoints || !adCopy || !userEmail) {
       return res.status(400).json({ message: "Missing required fields" });
     }
 
@@ -19,6 +19,7 @@ router.post("/store", async (req, res) => {
       targetAudience,
       uniqueSellingPoints,
       adCopy,
+      userEmail, 
     });
 
     await newAd.save();

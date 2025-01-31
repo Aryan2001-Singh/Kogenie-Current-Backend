@@ -8,6 +8,7 @@ const AdSchema = new mongoose.Schema(
     targetAudience: { type: String, required: true },
     uniqueSellingPoints: { type: String, required: true },
     adCopy: { type: String, required: true },
+    userEmail:{type:String, required: true},
   },
   { timestamps: true } // Adds createdAt & updatedAt fields
 );

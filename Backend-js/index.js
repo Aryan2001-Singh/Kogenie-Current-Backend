@@ -13,7 +13,7 @@ const app = express();
 app.use(express.json());
 app.use(
   cors({
-    origin: ['https://www.kogenie.com', 'https://kogenie.com', 'http://localhost:3000'],
+    origin: ['https://www.kogenie.com', 'https://kogenie.com', 'http://localhost:3000','http://localhost:3001'],
   }),
   
 );
