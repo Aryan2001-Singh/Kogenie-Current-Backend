@@ -20,7 +20,7 @@ app.use(helmet()); //Secure HTTP Headers
 // Apply Rate Limiting to Prevent Abuse 
 
 const limiter = rateLimit({
-  windowMs: 5 * 60 * 1000, //15 Minutes 
+  windowMs: 5 * 60 * 1000, //5 Minutes 
   max: 1000 //Limit each IP to 100 requests per windowMs
 });
 app.use(limiter);
