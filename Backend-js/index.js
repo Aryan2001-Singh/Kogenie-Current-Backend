@@ -8,7 +8,7 @@ const cheerio = require('cheerio');
 const connectDB = require("./config/db"); // ✅ Import DB Connection
 const compression = require("compression")// Enable response compression
 const helmet = require("helmet");// Improve security with helmet 
-const rateLimit = require("express-rate-limit"); //Apply rate limiting 
+// const rateLimit = require("express-rate-limit"); //Apply rate limiting 
 const adRoutes = require("./routes/adRoutes");
 require('dotenv').config();
 connectDB();
@@ -19,11 +19,11 @@ app.use(helmet()); //Secure HTTP Headers
 
 // Apply Rate Limiting to Prevent Abuse 
 
-const limiter = rateLimit({
-  windowMs: 5 * 60 * 1000, //5 Minutes 
-  max: 1000 //Limit each IP to 100 requests per windowMs
-});
-app.use(limiter);
+// const limiter = rateLimit({
+//   windowMs: 5 * 60 * 1000, //5 Minutes 
+//   max: 1000 //Limit each IP to 100 requests per windowMs
+// });
+// app.use(limiter);
 app.use(
   cors({
     origin: ['https://www.kogenie.com', 'https://kogenie.com', 'http://localhost:3000','http://localhost:3001'],
