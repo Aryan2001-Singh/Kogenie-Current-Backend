@@ -190,6 +190,7 @@ app.post('/generateAdPrompt', async (req, res) => {
       {
         headers: {
           Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+          timeout:20000 //increase timeout to 20000
         },
       }
     );
