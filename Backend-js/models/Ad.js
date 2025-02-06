@@ -2,13 +2,13 @@ const mongoose = require("mongoose");
 
 const AdSchema = new mongoose.Schema(
   {
-    brandName: { type: String, required: true },
+    brandName: { type: String, required: true , index: true }, // Indexing for faster queries
     productName: { type: String, required: true },
     productDescription: { type: String, required: true },
     targetAudience: { type: String, required: true },
     uniqueSellingPoints: { type: String, required: true },
     adCopy: { type: String, required: true },
-    userEmail:{type:String, required: true},
+    userEmail:{type:String, required: true , index: true}, // Indexing userEmail for quick lookups 
   },
   { timestamps: true } // Adds createdAt & updatedAt fields
 );

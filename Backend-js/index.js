@@ -6,11 +6,24 @@ const path = require('path');
 const puppeteer = require('puppeteer');
 const cheerio = require('cheerio');
 const connectDB = require("./config/db"); // ✅ Import DB Connection
+const compression = require("compression")// Enable response compression
+const helmet = require("helmet");// Improve security with helmet 
+const rateLimit = require("express-rate-limit"); //Apply rate limiting 
 const adRoutes = require("./routes/adRoutes");
 require('dotenv').config();
 connectDB();
 const app = express();
 app.use(express.json());
+app.use(compression()); // Apply compression Middleware
+app.use(helmet()); //Secure HTTP Headers
+
+// Apply Rate Limiting to Prevent Abuse 
+
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, //15 Minutes 
+  max: 100 //Limit each IP to 100 requests per windowMs
+});
+app.use(limiter);
 app.use(
   cors({
     origin: ['https://www.kogenie.com', 'https://kogenie.com', 'http://localhost:3000','http://localhost:3001'],
