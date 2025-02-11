@@ -12,9 +12,9 @@ router.use(compression());
 // ✅ Route: Store Ad Data
 router.post("/store", async (req, res) => {
   try {
-    const { brandName, productName, productDescription, targetAudience, uniqueSellingPoints, adCopy, userEmail } = req.body;
+    const { brandName, productName, productDescription, targetAudience, uniqueSellingPoints, adCopy, headline, userEmail } = req.body;
 
-    if (!brandName || !productName || !productDescription || !targetAudience || !uniqueSellingPoints || !adCopy || !userEmail) {
+    if (!brandName || !productName || !productDescription || !targetAudience || !uniqueSellingPoints || !adCopy || !headline|| !userEmail) {
       return res.status(400).json({ message: "Missing required fields" });
     }
 
@@ -25,6 +25,7 @@ router.post("/store", async (req, res) => {
       targetAudience,
       uniqueSellingPoints,
       adCopy,
+      headline,
       userEmail, 
     });
 
