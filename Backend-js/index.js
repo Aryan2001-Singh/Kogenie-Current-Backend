@@ -34,9 +34,17 @@ app.use(
       "http://localhost:3000",
       "http://localhost:3001",
     ],
+    methods: "GET,POST,PUT,DELETE",
+    credentials: true,
+    allowedHeaders: "Content-Type, Authorization"
   })
 );
 app.use("/api/ads", adRoutes);
+app.use((req, res, next) => {
+  console.log("🔵 Incoming request:", req.method, req.url);
+  console.log("🟢 CORS Headers:", req.headers.origin);
+  next();
+});
 
 // Function to get target description
 function getTargetDescription(gender, ageGroup) {
