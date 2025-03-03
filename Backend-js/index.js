@@ -36,7 +36,7 @@ app.use(
     ],
     methods: "GET,POST,PUT,DELETE",
     credentials: true,
-    allowedHeaders: "Content-Type, Authorization"
+    allowedHeaders: "Content-Type, Authorization",
   })
 );
 app.use("/api/ads", adRoutes);
@@ -116,6 +116,56 @@ function saveToCSV(data) {
 
   fs.appendFileSync(filePath, row, "utf8");
 }
+// ✅ Function to Scrape Product Data using Puppeteer
+async function scrapeProductData(url) {
+  console.log("🔵 Scraping URL:", url);
+
+  // Launch Puppeteer
+  const browser = await puppeteer.launch({ headless: true });
+  const page = await browser.newPage();
+
+  // Set user agent to prevent blocking
+  await page.setUserAgent("Mozilla/5.0");
+
+  // Navigate to the website
+  await page.goto(url, { waitUntil: "networkidle2" });
+
+  // Extract HTML content
+  const content = await page.content();
+  console.log("✅ Extracted HTML Length:", content.length);
+
+  // Close Puppeteer
+  await browser.close();
+
+  // Ensure content is not empty
+  if (!content || content.length === 0) {
+    throw new Error("Failed to load webpage content");
+  }
+
+  // Load HTML into Cheerio
+  const $ = cheerio.load(content);
+
+  // ✅ Extract Metadata
+  const productName =
+    $("meta[property='og:title']").attr("content") || $("title").text();
+  const productDescription =
+    $("meta[property='og:description']").attr("content") ||
+    $("meta[name='description']").attr("content");
+
+  // ✅ Extract Images
+  const productImages = [];
+  $("img").each((i, img) => {
+    let src = $(img).attr("src");
+    if (src && !src.startsWith("data:image")) {
+      if (!src.startsWith("http")) {
+        src = new URL(src, url).href; // Convert relative URLs to absolute
+      }
+      productImages.push(src);
+    }
+  });
+
+  return { productName, productDescription, productImages };
+}
 
 // Endpoint: Create Ad (via scraping)
 app.post("/createAd", async (req, res) => {
@@ -128,28 +178,42 @@ app.post("/createAd", async (req, res) => {
   try {
     console.log("Received URL:", url);
 
-    // Call the Python scraping service
-    const scrapeResponse = await axios.post("http://localhost:8000/scrape", {
-      url,
-    });
-    const productData = scrapeResponse.data;
+    // ✅ Scrape product data using Puppeteer
+    const { productName, productDescription, productImages } =
+      await scrapeProductData(url);
 
-    console.log("Scraped Product Data:", productData);
+    if (!productName || !productDescription) {
+      return res
+        .status(500)
+        .json({ message: "Failed to extract product details" });
+    }
+    console.log("✅ Scraped Data:", {
+      productName,
+      productDescription,
+      productImages,
+    });
+
+    // Call the Python scraping service
+    // const scrapeResponse = await axios.post("http://localhost:8000/scrape", {
+    //   url,
+    // });
+    // const productData = scrapeResponse.data;
+
+    // console.log("Scraped Product Data:", productData);
 
     // Get target description
     const targetDescription = getTargetDescription(gender, ageGroup);
 
     // Prepare prompt for GPT
     const prompt = `feature+benefit+meaning
-      feature = what it is
-      benefit = what it does
-      meaning = what it means to the buyer/reader/prospect
-      formula = it____(feature)so you can ____(benefit)which means_________(meaning)
-      Using this formula, create an advertisement and a headline for:
-      - Brand Name: ${productData.brandName}
-      - Product Name: ${productData.productName}
-      - Features: ${productData.productDescription}
-      - Target Audience: General`;
+    feature = what it is
+    benefit = what it does
+    meaning = what it means to the buyer/reader/prospect
+    formula = it____(feature)so you can ____(benefit)which means_________(meaning)
+    Using this formula, create an advertisement and a headline for:
+    - Product Name: ${productName}
+    - Features: ${productDescription}
+    - Target Audience: General`;
 
     // Generate ad copy using OpenAI API
     const gptResponse = await axios.post(
@@ -169,17 +233,31 @@ app.post("/createAd", async (req, res) => {
       }
     );
 
-    const adCopy = gptResponse.data.choices[0].message.content;
-    const headline = gptResponse.data.choices[1].message.content;
+    const fullResponse = gptResponse.data.choices?.[0]?.message?.content || "";
+
+    // ✅ Extract Headline from Response
+    const headlineMatch = fullResponse.match(/Headline:\s*["“](.*?)["”]/);
+    const extractedHeadline = headlineMatch
+      ? headlineMatch[1]
+      : "Headline Not Generated";
+
+    // ✅ Extract Ad Copy (everything after "Ad copy:")
+    const adCopyMatch = fullResponse.match(/Ad copy:\s*([\s\S]*)/);
+    const extractedAdCopy = adCopyMatch ? adCopyMatch[1].trim() : fullResponse; // Fallback
+
+    console.log("🔵 Full OpenAI Response:", fullResponse);
+    console.log("🟢 Extracted Headline:", extractedHeadline);
+    console.log("🟢 Extracted Ad Copy:", extractedAdCopy);
 
     // Combine all data
     const responseData = {
-      ...productData,
+      productName,
+      productDescription,
+      productImages,
       targetDescription,
-      adCopy,
-      headline,
+      adCopy: extractedAdCopy, // ✅ Store extracted ad copy
+      headline: extractedHeadline, // ✅ Store extracted headline
     };
-
     // Save the data to a CSV file
     saveToCSV(responseData);
 
@@ -232,27 +310,28 @@ app.post("/generateAdPrompt", async (req, res) => {
       {
         model: "gpt-4",
         messages: [
-          {
-            role: "system",
-            content: "You are an AI that generates ad copy and headlines.",
-          },
+          { role: "system", content: "You are an AI that generates ad copy." },
           { role: "user", content: prompt },
         ],
-        max_tokens: 200,
+        max_tokens: 150,
       },
       {
         headers: {
           Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
-          timeout: 20000,
         },
       }
     );
 
-    const fullResponse = gptResponse.data.choices[0].message.content;
+    // ✅ Debugging: Log the entire GPT response
+    console.log(
+      "🔵 OpenAI Response:",
+      JSON.stringify(gptResponse.data, null, 2)
+    );
 
     // ✅ Try extracting Headline explicitly
+    const fullResponse = gptResponse.data.choices?.[0]?.message?.content || "";
     const headlineMatch = fullResponse.match(/Headline:\s*["“](.*?)["”]/);
-    let headline = headlineMatch ? headlineMatch[1] : null;
+    let headline = headlineMatch ? headlineMatch[1] : "Headline Not Generated";
 
     // ✅ If no headline is found, try extracting the first bold sentence as headline
     if (!headline) {
@@ -268,8 +347,6 @@ app.post("/generateAdPrompt", async (req, res) => {
     console.log("🔵 Full OpenAI Response:", fullResponse);
     console.log("🟢 Extracted Headline:", headline);
     console.log("🟢 Extracted Ad Copy:", adCopy);
-
-
 
     // ✅ Send back both headline and adCopy
     res.json({
