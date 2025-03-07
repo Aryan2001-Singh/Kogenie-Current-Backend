@@ -29,35 +29,31 @@ app.use(helmet()); //Secure HTTP Headers
 
 // app.use(limiter);
 
-app.use(
-  cors({
+app.use(cors({
     origin: [
-      "https://www.kogenie.com",
-      "https://kogenie.com",
-      "https://kogenie-current-frontend.onrender.com",
+        "https://www.kogenie.com",
+        "https://kogenie.com",
+        "https://kogenie-current-frontend.onrender.com"
     ],
-    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"], // ✅ Include OPTIONS explicitly
+    methods: "GET,POST,PUT,DELETE",
     credentials: true,
-    allowedHeaders: ["Content-Type", "Authorization"],
-  })
-);
+    allowedHeaders: "Content-Type, Authorization",
+}));
 
-// ✅ Add this line to handle preflight requests properly
-// app.options("*", (req, res) => {
-//   res.sendStatus(200);
-// });
+// Add this middleware BEFORE your routes
 app.use((req, res, next) => {
-  res.header("Access-Control-Allow-Origin", "*");
-  res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE");
-  res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
-  next();
+    res.setHeader("Access-Control-Allow-Origin", "*"); // Replace "*" with allowed domains in production
+    res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+    res.setHeader("Access-Control-Allow-Credentials", "true");
+
+    if (req.method === "OPTIONS") {
+        return res.status(200).end();
+    }
+    next();
 });
+
 app.use("/api/ads", adRoutes);
-app.use((req, res, next) => {
-  console.log("🔵 Incoming request:", req.method, req.url);
-  console.log("🟢 CORS Headers:", req.headers.origin);
-  next();
-});
 
 // Function to get target description
 function getTargetDescription(gender, ageGroup) {
@@ -105,10 +101,15 @@ async function scrapeProductData(url) {
 
   // Launch Puppeteer
   const browser = await puppeteer.launch({
-    executablePath: chromium.path,  // ✅ Use server-installed Chromium
-    args: ["--no-sandbox", "--disable-setuid-sandbox"],  // ✅ Required for Render/Vercel
-    headless: true
-  });
+    executablePath: process.env.CHROMIUM_PATH || chromium.path,
+    args: [
+        "--no-sandbox",
+        "--disable-setuid-sandbox",
+        "--disable-gpu",
+        "--disable-dev-shm-usage",
+    ],
+    headless: true,
+});
   const page = await browser.newPage();
 
   // Set user agent to prevent blocking
