@@ -31,16 +31,27 @@ app.use(helmet()); //Secure HTTP Headers
 
 
 
-app.use(cors({
-    origin: [
-        "https://www.kogenie.com",
-        "https://kogenie.com",
-        "https://kogenie-current-frontend.onrender.com"
-    ],
-    methods: "GET,POST,PUT,DELETE",
-    credentials: true,
-    allowedHeaders: "Content-Type, Authorization",
-}));
+const allowedOrigins = [
+  "https://www.kogenie.com",
+  "https://kogenie.com",
+  "https://kogenie-current-frontend.onrender.com"
+];
+
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  if (allowedOrigins.includes(origin)) {
+      res.setHeader("Access-Control-Allow-Origin", origin);
+      res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+      res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+      res.setHeader("Access-Control-Allow-Credentials", "true");
+  }
+
+  if (req.method === "OPTIONS") {
+      return res.status(200).end();
+  }
+
+  next();
+});
 
 // Add this middleware BEFORE your routes
 app.use((req, res, next) => {
@@ -117,8 +128,9 @@ async function scrapeProductData(url) {
   console.log("🔵 Scraping URL:", url);
 
   // Launch Puppeteer
+
   const browser = await puppeteer.launch({
-    executablePath: process.env.CHROMIUM_PATH || chromium.path,
+    executablePath: "/usr/bin/google-chrome-stable",  // Correct path for Render
     args: ["--no-sandbox", "--disable-setuid-sandbox"],
     headless: true
 });
