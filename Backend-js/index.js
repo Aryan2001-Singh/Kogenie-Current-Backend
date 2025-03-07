@@ -19,28 +19,33 @@ app.use(compression()); // Apply compression Middleware
 app.use(helmet()); //Secure HTTP Headers
 
 // ✅ Default Allowed Origins (Prevent "undefined" issue)
-const allowedOrigins = process.env.CORS_ORIGIN
-  ? process.env.CORS_ORIGIN.split(",")
-  : [
-      "https://kogenie.com",
-      "https://www.kogenie.com",
-      "https://kogenie-current-frontend.onrender.com",
-    ];
+const allowedOrigins = [
+  "https://www.kogenie.com",
+  "https://kogenie.com",
+  "https://kogenie-current-frontend.onrender.com"
+];
 
-app.use(
-  cors({
-    origin: function (origin, callback) {
-      if (!origin) return callback(null, true); // ✅ Allow non-browser requests (like server requests)
-      if (allowedOrigins.includes(origin)) {
-        callback(null, true);
-      } else {
-        callback(new Error("Not allowed by CORS"));
-      }
-    },
-    methods: ["GET", "POST", "PUT", "DELETE"],
-    credentials: true,
-  })
-);
+app.use(cors({
+  origin: function (origin, callback) {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error("Not allowed by CORS"));
+    }
+  },
+  methods: ["GET", "POST", "PUT", "DELETE"],
+  credentials: true
+}));
+
+// ✅ Debugging: Log Incoming Requests
+app.use((req, res, next) => {
+  console.log("🔵 Incoming request:", req.method, req.url);
+  console.log("🟢 Request Origin:", req.headers.origin || "No Origin (Server Request)");
+  res.header("Access-Control-Allow-Origin", req.headers.origin || "*");
+  res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE");
+  res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
+  next();
+});
 
 // ✅ Log Incoming Request Origins
 app.use((req, res, next) => {
