@@ -29,6 +29,8 @@ app.use(helmet()); //Secure HTTP Headers
 
 // app.use(limiter);
 
+
+
 app.use(cors({
     origin: [
         "https://www.kogenie.com",
@@ -53,7 +55,22 @@ app.use((req, res, next) => {
     next();
 });
 
+// ✅ Add this line to handle preflight requests properly
+// app.options("*", (req, res) => {
+//   res.sendStatus(200);
+// });
+app.use((req, res, next) => {
+  res.header("Access-Control-Allow-Origin", "*");
+  res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE");
+  res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
+  next();
+});
 app.use("/api/ads", adRoutes);
+app.use((req, res, next) => {
+  console.log("🔵 Incoming request:", req.method, req.url);
+  console.log("🟢 CORS Headers:", req.headers.origin);
+  next();
+});
 
 // Function to get target description
 function getTargetDescription(gender, ageGroup) {
@@ -102,13 +119,8 @@ async function scrapeProductData(url) {
   // Launch Puppeteer
   const browser = await puppeteer.launch({
     executablePath: process.env.CHROMIUM_PATH || chromium.path,
-    args: [
-        "--no-sandbox",
-        "--disable-setuid-sandbox",
-        "--disable-gpu",
-        "--disable-dev-shm-usage",
-    ],
-    headless: true,
+    args: ["--no-sandbox", "--disable-setuid-sandbox"],
+    headless: true
 });
   const page = await browser.newPage();
 
