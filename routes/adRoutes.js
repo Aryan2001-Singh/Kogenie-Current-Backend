@@ -1,5 +1,5 @@
 const express = require("express");
-const Ad = require("../models/Ad");
+const Ad = require("../../models/Ad");
 const router = express.Router();
 const NodeCache = require("node-cache"); // ✅ Import NodeCache for in-memory caching
 const cache = new NodeCache({ stdTTL: 300, checkperiod: 320 }); // Cache expires in 5 minutes
