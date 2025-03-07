@@ -35,6 +35,7 @@ app.use(
       "https://kogenie.com",
       "http://localhost:3000",
       "http://localhost:3001",
+      "https://kogenie-current-frontend.onrender.com",
     ],
     methods: "GET,POST,PUT,DELETE",
     credentials: true,
