@@ -1,6 +1,6 @@
 const express = require("express");
 const axios = require("axios");
-const cors = require("cors");
+
 const fs = require("fs");
 const path = require("path");
 const puppeteer = require("puppeteer");
@@ -19,12 +19,23 @@ app.use(compression()); // Apply compression Middleware
 app.use(helmet()); //Secure HTTP Headers
 
 // ✅ Default Allowed Origins (Prevent "undefined" issue)
+
+
+const cors = require("cors");
+// ✅ Allowed frontend origins
 const allowedOrigins = [
   "https://www.kogenie.com",
   "https://kogenie.com",
-  "https://kogenie-current-frontend.onrender.com"
+  "https://kogenie-current-frontend.onrender.com",
+  "http://localhost:3000" // ✅ Include for local testing
 ];
 
+app.use((req, res, next) => {
+  console.log("🔵 Incoming request:", req.method, req.url);
+  console.log("🟢 Request Origin:", req.headers.origin || "No Origin (Server Request)");
+  next();
+});
+const cors = require("cors");
 app.use(cors({
   origin: function (origin, callback) {
     if (!origin || allowedOrigins.includes(origin)) {
@@ -34,19 +45,17 @@ app.use(cors({
     }
   },
   methods: ["GET", "POST", "PUT", "DELETE"],
+  allowedHeaders: ["Content-Type", "Authorization"],
   credentials: true
 }));
 
-// ✅ Debugging: Log Incoming Requests
+// ✅ Ensure headers are always set before response
 app.use((req, res, next) => {
-  console.log("🔵 Incoming request:", req.method, req.url);
-  console.log("🟢 Request Origin:", req.headers.origin || "No Origin (Server Request)");
   res.header("Access-Control-Allow-Origin", req.headers.origin || "*");
   res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE");
   res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
   next();
 });
-
 // ✅ Log Incoming Request Origins
 app.use((req, res, next) => {
   console.log("🔵 Incoming request:", req.method, req.url);
