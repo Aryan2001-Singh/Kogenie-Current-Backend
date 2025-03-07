@@ -28,19 +28,24 @@ app.use(helmet()); //Secure HTTP Headers
 // });
 
 // app.use(limiter);
+
 app.use(
   cors({
     origin: [
       "https://www.kogenie.com",
       "https://kogenie.com",
-      "https://kogenie-current-frontend.onrender.com"
+      "https://kogenie-current-frontend.onrender.com",
     ],
-    methods: "GET,POST,PUT,DELETE",
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"], // ✅ Include OPTIONS explicitly
     credentials: true,
-    allowedHeaders: "Content-Type, Authorization",
+    allowedHeaders: ["Content-Type", "Authorization"],
   })
 );
-app.options("https://www.kogenie.com","https://kogenie.com","https://kogenie-current-frontend.onrender.com", cors());
+
+// ✅ Add this line to handle preflight requests properly
+app.options("*", (req, res) => {
+  res.sendStatus(200);
+});
 app.use("/api/ads", adRoutes);
 app.use((req, res, next) => {
   console.log("🔵 Incoming request:", req.method, req.url);
