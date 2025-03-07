@@ -104,7 +104,10 @@ async function scrapeProductData(url) {
   await page.setUserAgent("Mozilla/5.0");
 
   // Navigate to the website
-  await page.goto(url, { waitUntil: "networkidle2" });
+  await page.goto(url, {
+    waitUntil: "networkidle2",
+    timeout: 60000, // ✅ Increase timeout to 60 seconds
+  });
 
   // Extract HTML content
   const content = await page.content();
