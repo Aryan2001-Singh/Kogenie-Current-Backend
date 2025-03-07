@@ -97,10 +97,10 @@ async function scrapeProductData(url) {
 
   // Launch Puppeteer
   const browser = await puppeteer.launch({
-    executablePath: process.env.CHROMIUM_PATH || puppeteer.executablePath(), // ✅ Auto-detect Chromium
     args: ["--no-sandbox", "--disable-setuid-sandbox"], // ✅ Required for Render
     headless: "new", // ✅ Use the latest headless mode
-    timeout: 60000, // ✅ Increase timeout
+    executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || puppeteer.executablePath(), // ✅ Auto-detect Puppeteer Chromium
+    timeout: 60000 // ✅ Increase timeout
   });
   const page = await browser.newPage();
 
