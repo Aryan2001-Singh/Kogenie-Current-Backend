@@ -1,1 +1,1 @@
-web: cd Backend-js && node index.js
+web: node index.js
