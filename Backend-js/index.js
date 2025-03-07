@@ -28,17 +28,31 @@ app.use(helmet()); //Secure HTTP Headers
 // });
 
 // app.use(limiter);
-app.use((req, res, next) => {
-  console.log("🔵 Incoming request:", req.method, req.url);
-  console.log("🟢 Request Origin:", req.headers.origin); // Log the incoming request origin
-  next();
-});
+
+// ✅ Default Allowed Origins (Prevent "undefined" issue)
+const allowedOrigins = process.env.CORS_ORIGIN
+  ? process.env.CORS_ORIGIN.split(",")
+  : ["https://kogenie.com", "https://www.kogenie.com", "https://kogenie-current-frontend.onrender.com"];
 
 app.use(cors({
-  origin: process.env.CORS_ORIGIN.split(","), // ✅ Supports multiple domains
-  methods: "GET,POST,PUT,DELETE",
-  credentials: true
+  origin: function (origin, callback) {
+    if (!origin) return callback(null, true); // ✅ Allow non-browser requests (like server requests)
+    if (allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error("Not allowed by CORS"));
+    }
+  },
+  methods: ["GET", "POST", "PUT", "DELETE"],
+  credentials: true,
 }));
+
+// ✅ Log Incoming Request Origins
+app.use((req, res, next) => {
+  console.log("🔵 Incoming request:", req.method, req.url);
+  console.log("🟢 Request Origin:", req.headers.origin || "No Origin (Server Request)");
+  next();
+});
 app.use("/api/ads", adRoutes);
 
 // Function to get target description
@@ -164,16 +178,6 @@ app.post("/createAd", async (req, res) => {
       productDescription,
       productImages,
     });
-
-    // Call the Python scraping service
-    // const scrapeResponse = await axios.post("http://localhost:8000/scrape", {
-    //   url,
-    // });
-    // const productData = scrapeResponse.data;
-
-    // console.log("Scraped Product Data:", productData);
-
-    // Get target description
     const targetDescription = getTargetDescription(gender, ageGroup);
 
     // Prepare prompt for GPT
