@@ -28,39 +28,37 @@ const allowedOrigins = [
   "https://www.kogenie.com",
   "https://kogenie.com",
   "https://kogenie-current-frontend.onrender.com",
-  "http://localhost:3000" // ✅ Include for local testing
+  "http://localhost:3000" // ✅ For local testing
 ];
 
 app.use(cors({
-  origin: allowedOrigins,
-  methods: ["GET", "POST", "PUT", "DELETE"],
+  origin: function (origin, callback) {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      console.error("❌ Blocked by CORS:", origin);
+      callback(new Error("Not allowed by CORS"));
+    }
+  },
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"], // ✅ Ensure OPTIONS is included
   allowedHeaders: ["Content-Type", "Authorization"],
   credentials: true
 }));
 
-// ✅ Ensure headers are set before response
+// ✅ Ensure headers are set for all responses
 app.use((req, res, next) => {
-  res.setHeader("Access-Control-Allow-Origin", req.headers.origin || "*");
-  res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE");
+  const origin = req.headers.origin;
+  if (allowedOrigins.includes(origin)) {
+    res.setHeader("Access-Control-Allow-Origin", origin);
+  }
+  res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
   res.setHeader("Access-Control-Allow-Credentials", "true");
-  next();
-});
 
-// ✅ Ensure headers are always set before response
-app.use((req, res, next) => {
-  res.header("Access-Control-Allow-Origin", req.headers.origin || "*");
-  res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE");
-  res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
-  next();
-});
-// ✅ Log Incoming Request Origins
-app.use((req, res, next) => {
-  console.log("🔵 Incoming request:", req.method, req.url);
-  console.log(
-    "🟢 Request Origin:",
-    req.headers.origin || "No Origin (Server Request)"
-  );
+  if (req.method === "OPTIONS") {
+    return res.sendStatus(200);
+  }
+
   next();
 });
 app.use("/api/ads", adRoutes);
