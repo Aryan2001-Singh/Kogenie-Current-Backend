@@ -33,15 +33,14 @@ app.use(
     origin: [
       "https://www.kogenie.com",
       "https://kogenie.com",
-      "http://localhost:3000",
-      "http://localhost:3001",
-      "https://kogenie-current-frontend.onrender.com",
+      "https://kogenie-current-frontend.onrender.com"
     ],
     methods: "GET,POST,PUT,DELETE",
     credentials: true,
     allowedHeaders: "Content-Type, Authorization",
   })
 );
+app.options("https://www.kogenie.com","https://kogenie.com","https://kogenie-current-frontend.onrender.com", cors());
 app.use("/api/ads", adRoutes);
 app.use((req, res, next) => {
   console.log("🔵 Incoming request:", req.method, req.url);
