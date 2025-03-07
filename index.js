@@ -106,16 +106,15 @@ async function scrapeProductData(url) {
   console.log("🔵 Scraping URL:", url);
 
   const browser = await puppeteer.launch({
-    headless: "new",
     args: [
       "--no-sandbox",
       "--disable-setuid-sandbox",
-      "--disable-dev-shm-usage",
       "--disable-gpu",
-      "--single-process",
-      "--no-zygote"
+      "--disable-dev-shm-usage",
+      "--disable-software-rasterizer"
     ],
-    executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || puppeteer.executablePath()
+    headless: true,
+    executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || await puppeteer.executablePath()
   });
   const page = await browser.newPage();
   await page.setUserAgent("Mozilla/5.0");
