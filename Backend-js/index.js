@@ -35,7 +35,6 @@ app.use((req, res, next) => {
   console.log("🟢 Request Origin:", req.headers.origin || "No Origin (Server Request)");
   next();
 });
-const cors = require("cors");
 app.use(cors({
   origin: function (origin, callback) {
     if (!origin || allowedOrigins.includes(origin)) {
