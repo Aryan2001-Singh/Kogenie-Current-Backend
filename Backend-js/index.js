@@ -108,8 +108,8 @@ async function scrapeProductData(url) {
   // ✅ Modify Puppeteer launch to work with Render
   const browser = await puppeteer.launch({
     args: ["--no-sandbox", "--disable-setuid-sandbox"],
-    headless: true, // ✅ Use "true" for production
-    executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || puppeteer.executablePath()
+    headless: true, // ✅ Ensure headless mode
+    executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || "/usr/bin/chromium-browser" // ✅ Use correct path
   });
 
   const page = await browser.newPage();
