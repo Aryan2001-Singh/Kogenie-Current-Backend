@@ -28,27 +28,18 @@ app.use(helmet()); //Secure HTTP Headers
 // });
 
 // app.use(limiter);
-app.use(
-  cors({
-    origin: [
-      "https://www.kogenie.com",
-      "https://kogenie.com",
-      "http://localhost:3000",
-      "http://localhost:3001",
-      "https://kogenie-current-frontend.onrender.com",
-      "https://www.kogenie.com/organization/org_2pKncAgZ1wzcN9IjjLPHG8y5nsW"
-    ],
-    methods: "GET,POST,PUT,DELETE",
-    credentials: true,
-    allowedHeaders: "Content-Type, Authorization",
-  })
-);
-app.use("/api/ads", adRoutes);
 app.use((req, res, next) => {
   console.log("🔵 Incoming request:", req.method, req.url);
-  console.log("🟢 CORS Headers:", req.headers.origin);
+  console.log("🟢 Request Origin:", req.headers.origin); // Log the incoming request origin
   next();
 });
+
+app.use(cors({
+  origin: process.env.CORS_ORIGIN.split(","), // ✅ Supports multiple domains
+  methods: "GET,POST,PUT,DELETE",
+  credentials: true
+}));
+app.use("/api/ads", adRoutes);
 
 // Function to get target description
 function getTargetDescription(gender, ageGroup) {
@@ -96,8 +87,8 @@ async function scrapeProductData(url) {
 
   // Launch Puppeteer
   const browser = await puppeteer.launch({
-    executablePath: chromium.path,  // ✅ Use server-installed Chromium
-    args: ["--no-sandbox", "--disable-setuid-sandbox"],  // ✅ Required for Render/Vercel
+    executablePath: process.env.CHROMIUM_PATH || puppeteer.executablePath(),
+    args: ["--no-sandbox", "--disable-setuid-sandbox"],
     headless: true
   });
   const page = await browser.newPage();
