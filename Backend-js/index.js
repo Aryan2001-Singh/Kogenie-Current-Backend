@@ -28,54 +28,21 @@ app.use(helmet()); //Secure HTTP Headers
 // });
 
 // app.use(limiter);
-
-
-
-const allowedOrigins = [
-  "https://www.kogenie.com",
-  "https://kogenie.com",
-  "https://kogenie-current-frontend.onrender.com"
-];
-
-app.use((req, res, next) => {
-  const origin = req.headers.origin;
-  if (allowedOrigins.includes(origin)) {
-      res.setHeader("Access-Control-Allow-Origin", origin);
-      res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
-      res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
-      res.setHeader("Access-Control-Allow-Credentials", "true");
-  }
-
-  if (req.method === "OPTIONS") {
-      return res.status(200).end();
-  }
-
-  next();
-});
-
-// Add this middleware BEFORE your routes
-app.use((req, res, next) => {
-    res.setHeader("Access-Control-Allow-Origin", "*"); // Replace "*" with allowed domains in production
-    res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE");
-    res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
-    res.setHeader("Access-Control-Allow-Credentials", "true");
-
-    if (req.method === "OPTIONS") {
-        return res.status(200).end();
-    }
-    next();
-});
-
-// ✅ Add this line to handle preflight requests properly
-// app.options("*", (req, res) => {
-//   res.sendStatus(200);
-// });
-app.use((req, res, next) => {
-  res.header("Access-Control-Allow-Origin", "*");
-  res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE");
-  res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
-  next();
-});
+app.use(
+  cors({
+    origin: [
+      "https://www.kogenie.com",
+      "https://kogenie.com",
+      "http://localhost:3000",
+      "http://localhost:3001",
+      "https://kogenie-current-frontend.onrender.com",
+      "https://www.kogenie.com/organization/org_2pKncAgZ1wzcN9IjjLPHG8y5nsW"
+    ],
+    methods: "GET,POST,PUT,DELETE",
+    credentials: true,
+    allowedHeaders: "Content-Type, Authorization",
+  })
+);
 app.use("/api/ads", adRoutes);
 app.use((req, res, next) => {
   console.log("🔵 Incoming request:", req.method, req.url);
@@ -128,12 +95,11 @@ async function scrapeProductData(url) {
   console.log("🔵 Scraping URL:", url);
 
   // Launch Puppeteer
-
   const browser = await puppeteer.launch({
-    executablePath: "/usr/bin/google-chrome-stable",  // Correct path for Render
-    args: ["--no-sandbox", "--disable-setuid-sandbox"],
+    executablePath: chromium.path,  // ✅ Use server-installed Chromium
+    args: ["--no-sandbox", "--disable-setuid-sandbox"],  // ✅ Required for Render/Vercel
     headless: true
-});
+  });
   const page = await browser.newPage();
 
   // Set user agent to prevent blocking
