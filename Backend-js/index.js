@@ -110,10 +110,16 @@ async function scrapeProductData(url) {
 
   // Launch Puppeteer
   const browser = await puppeteer.launch({
-    args: ["--no-sandbox", "--disable-setuid-sandbox"], // ✅ Required for Render
-    headless: "new", // ✅ Use the latest headless mode
-    executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || puppeteer.executablePath(), // ✅ Auto-detect Puppeteer Chromium
-    timeout: 60000 // ✅ Increase timeout
+    args: [
+      "--no-sandbox",
+      "--disable-setuid-sandbox",
+      "--disable-dev-shm-usage",
+      "--disable-gpu",
+      "--disable-software-rasterizer",
+      "--disable-extensions"
+    ],
+    headless: true, // ✅ Ensure Puppeteer runs headless
+    executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || "/usr/bin/google-chrome-stable" // ✅ Use system-installed Chromium
   });
   const page = await browser.newPage();
 
