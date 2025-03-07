@@ -22,6 +22,7 @@ app.use(helmet()); //Secure HTTP Headers
 
 
 const cors = require("cors");
+
 // ✅ Allowed frontend origins
 const allowedOrigins = [
   "https://www.kogenie.com",
@@ -30,23 +31,21 @@ const allowedOrigins = [
   "http://localhost:3000" // ✅ Include for local testing
 ];
 
-app.use((req, res, next) => {
-  console.log("🔵 Incoming request:", req.method, req.url);
-  console.log("🟢 Request Origin:", req.headers.origin || "No Origin (Server Request)");
-  next();
-});
 app.use(cors({
-  origin: function (origin, callback) {
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(new Error("Not allowed by CORS"));
-    }
-  },
+  origin: allowedOrigins,
   methods: ["GET", "POST", "PUT", "DELETE"],
   allowedHeaders: ["Content-Type", "Authorization"],
   credentials: true
 }));
+
+// ✅ Ensure headers are set before response
+app.use((req, res, next) => {
+  res.setHeader("Access-Control-Allow-Origin", req.headers.origin || "*");
+  res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+  res.setHeader("Access-Control-Allow-Credentials", "true");
+  next();
+});
 
 // ✅ Ensure headers are always set before response
 app.use((req, res, next) => {
@@ -108,51 +107,38 @@ function getTargetDescription(gender, ageGroup) {
 async function scrapeProductData(url) {
   console.log("🔵 Scraping URL:", url);
 
-  // Launch Puppeteer
+  // ✅ Modify Puppeteer launch to work with Render
   const browser = await puppeteer.launch({
-    args: ["--no-sandbox", "--disable-setuid-sandbox"], // ✅ Required for Render
-    headless: "new", // ✅ Use latest headless mode
+    args: ["--no-sandbox", "--disable-setuid-sandbox"],
+    headless: true, // ✅ Use "true" for production
+    executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || puppeteer.executablePath()
   });
-  const page = await browser.newPage();
 
-  // Set user agent to prevent blocking
+  const page = await browser.newPage();
   await page.setUserAgent("Mozilla/5.0");
 
-  // Navigate to the website
   await page.goto(url, {
-    waitUntil: "networkidle2",
-    timeout: 60000, // ✅ Increase timeout to 60 seconds
+    waitUntil: "domcontentloaded",
+    timeout: 60000, // ✅ Increase timeout
   });
 
-  // Extract HTML content
   const content = await page.content();
-  console.log("✅ Extracted HTML Length:", content.length);
-
-  // Close Puppeteer
   await browser.close();
 
-  // Ensure content is not empty
   if (!content || content.length === 0) {
     throw new Error("Failed to load webpage content");
   }
 
-  // Load HTML into Cheerio
   const $ = cheerio.load(content);
+  const productName = $("meta[property='og:title']").attr("content") || $("title").text();
+  const productDescription = $("meta[property='og:description']").attr("content") || $("meta[name='description']").attr("content");
 
-  // ✅ Extract Metadata
-  const productName =
-    $("meta[property='og:title']").attr("content") || $("title").text();
-  const productDescription =
-    $("meta[property='og:description']").attr("content") ||
-    $("meta[name='description']").attr("content");
-
-  // ✅ Extract Images
   const productImages = [];
   $("img").each((i, img) => {
     let src = $(img).attr("src");
     if (src && !src.startsWith("data:image")) {
       if (!src.startsWith("http")) {
-        src = new URL(src, url).href; // Convert relative URLs to absolute
+        src = new URL(src, url).href;
       }
       productImages.push(src);
     }
@@ -160,7 +146,6 @@ async function scrapeProductData(url) {
 
   return { productName, productDescription, productImages };
 }
-
 // Endpoint: Create Ad (via scraping)
 app.post("/createAd", async (req, res) => {
   const { url, gender, ageGroup } = req.body;
