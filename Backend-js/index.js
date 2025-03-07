@@ -104,12 +104,17 @@ function getTargetDescription(gender, ageGroup) {
 // ✅ Function to Scrape Product Data using Puppeteer
 async function scrapeProductData(url) {
   console.log("🔵 Scraping URL:", url);
-
-  // ✅ Modify Puppeteer launch to work with Render
+  
   const browser = await puppeteer.launch({
-    args: ["--no-sandbox", "--disable-setuid-sandbox"],
-    headless: true, // ✅ Ensure headless mode
-    executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || "/usr/bin/chromium-browser" // ✅ Use correct path
+    args: [
+      "--no-sandbox",
+      "--disable-setuid-sandbox",
+      "--disable-gpu",
+      "--disable-dev-shm-usage",
+      "--disable-software-rasterizer"
+    ],
+    headless: true, // ✅ Ensure headless mode is true
+    executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || "/usr/bin/chromium"
   });
 
   const page = await browser.newPage();
