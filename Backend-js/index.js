@@ -105,12 +105,16 @@ function getTargetDescription(gender, ageGroup) {
 async function scrapeProductData(url) {
   console.log("🔵 Scraping URL:", url);
 
-  const chromium = require("chrome-aws-lambda");
   const browser = await puppeteer.launch({
-    args: chromium.args,
-    defaultViewport: chromium.defaultViewport,
-    executablePath: await chromium.executablePath,
-    headless: chromium.headless,
+    args: [
+      "--no-sandbox",
+      "--disable-setuid-sandbox",
+      "--disable-gpu",
+      "--disable-dev-shm-usage",
+      "--disable-software-rasterizer"
+    ],
+    headless: true,
+    executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || await puppeteer.executablePath()
   });
   const page = await browser.newPage();
   await page.setUserAgent("Mozilla/5.0");
