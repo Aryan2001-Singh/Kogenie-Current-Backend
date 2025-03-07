@@ -4,6 +4,7 @@ const cors = require("cors");
 const fs = require("fs");
 const path = require("path");
 const puppeteer = require("puppeteer");
+const chromium = require("chromium");
 const cheerio = require("cheerio");
 const connectDB = require("./config/db"); // ✅ Import DB Connection
 const compression = require("compression"); // Enable response compression
@@ -85,12 +86,18 @@ function getTargetDescription(gender, ageGroup) {
   return descriptions[gender]?.[ageGroup] || "";
 }
 
+
+
 // ✅ Function to Scrape Product Data using Puppeteer
 async function scrapeProductData(url) {
   console.log("🔵 Scraping URL:", url);
 
   // Launch Puppeteer
-  const browser = await puppeteer.launch({ headless: true });
+  const browser = await puppeteer.launch({
+    executablePath: chromium.path,  // ✅ Use server-installed Chromium
+    args: ["--no-sandbox", "--disable-setuid-sandbox"],  // ✅ Required for Render/Vercel
+    headless: true
+  });
   const page = await browser.newPage();
 
   // Set user agent to prevent blocking
