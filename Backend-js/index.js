@@ -8,6 +8,7 @@ const cheerio = require("cheerio");
 const connectDB = require("./config/db"); // ✅ Import DB Connection
 const compression = require("compression"); // Enable response compression
 const helmet = require("helmet"); // Improve security with helmet
+const ScrapedAd = require("./models/ScrapedAd");
 // const rateLimit = require("express-rate-limit"); //Apply rate limiting
 const adRoutes = require("./routes/adRoutes");
 require("dotenv").config();
@@ -84,38 +85,6 @@ function getTargetDescription(gender, ageGroup) {
   return descriptions[gender]?.[ageGroup] || "";
 }
 
-// Function to save data to a CSV file
-function saveToCSV(data) {
-  const filePath = path.join(__dirname, "GeneratedAdData.csv"); // File path for the CSV file
-  const headers = [
-    "Brand Name",
-    "Product Name",
-    "Product Description",
-    "Target Description",
-    "Ad Copy",
-  ];
-
-  // Check if the file exists
-  const fileExists = fs.existsSync(filePath);
-
-  // If the file doesn't exist, create it and write the headers
-  if (!fileExists) {
-    const headerRow = headers.join(",") + "\n";
-    fs.writeFileSync(filePath, headerRow, "utf8");
-  }
-
-  // Append the new data to the file
-  const row =
-    [
-      `"${data.brandName}"`,
-      `"${data.productName}"`,
-      `"${data.productDescription}"`,
-      `"${data.targetDescription}"`,
-      `"${data.adCopy}"`,
-    ].join(",") + "\n";
-
-  fs.appendFileSync(filePath, row, "utf8");
-}
 // ✅ Function to Scrape Product Data using Puppeteer
 async function scrapeProductData(url) {
   console.log("🔵 Scraping URL:", url);
@@ -205,7 +174,8 @@ app.post("/createAd", async (req, res) => {
     const targetDescription = getTargetDescription(gender, ageGroup);
 
     // Prepare prompt for GPT
-    const prompt = `feature+benefit+meaning
+    const prompt = `You are an AI that generates ads based on 
+    feature+benefit+meaning
     feature = what it is
     benefit = what it does
     meaning = what it means to the buyer/reader/prospect
@@ -216,30 +186,43 @@ app.post("/createAd", async (req, res) => {
     - Target Audience: General`;
 
     // Generate ad copy using OpenAI API
-    const gptResponse = await axios.post(
-      "https://api.openai.com/v1/chat/completions",
+    const claudeResponse = await axios.post(
+      "https://api.anthropic.com/v1/messages", // ✅ Correct Endpoint
       {
-        model: "gpt-4",
+        model: "claude-3-opus-20240229", // ✅ Ensure this model is accessible
+        max_tokens: 300, // ✅ Correct field name
+        temperature: 0.7, // Optional: Adjust creativity
         messages: [
-          { role: "system", content: "You are an AI that generates ad copy." },
-          { role: "user", content: prompt },
+          // ✅ Correct format for Anthropic API
+          { role: "user", content: `\n\nHuman: ${prompt}\n\nAssistant:` },
         ],
-        max_tokens: 150,
       },
       {
         headers: {
-          Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+          "x-api-key": process.env.CLAUDE_API_KEY,
+          "anthropic-version": "2023-06-01",
+          "content-type": "application/json",
         },
       }
     );
 
-    const fullResponse = gptResponse.data.choices?.[0]?.message?.content || "";
+    const fullResponse = claudeResponse.data?.content?.[0]?.text || "";
+    console.log("Claude Response Text:", fullResponse);
 
     // ✅ Extract Headline from Response
-    const headlineMatch = fullResponse.match(/Headline:\s*["“](.*?)["”]/);
-    const extractedHeadline = headlineMatch
-      ? headlineMatch[1]
+    const headlineMatch = fullResponse.match(/Headline:\s*(.*?)(\n|$)/);
+    let extractedHeadline = headlineMatch
+      ? headlineMatch[1].trim()
       : "Headline Not Generated";
+
+    // ✅ Fallback: Use first bolded sentence if no headline is found
+    if (!extractedHeadline || extractedHeadline === "Headline Not Generated") {
+      const firstSentence = fullResponse.split(".")[0]; // Extract first sentence
+      extractedHeadline =
+        firstSentence.length > 5 ? firstSentence.trim() : "Default Headline";
+    }
+
+    console.log("🟢 Extracted Headline:", extractedHeadline);
 
     // ✅ Extract Ad Copy (everything after "Ad copy:")
     const adCopyMatch = fullResponse.match(/Ad copy:\s*([\s\S]*)/);
@@ -248,6 +231,7 @@ app.post("/createAd", async (req, res) => {
     console.log("🔵 Full OpenAI Response:", fullResponse);
     console.log("🟢 Extracted Headline:", extractedHeadline);
     console.log("🟢 Extracted Ad Copy:", extractedAdCopy);
+    console.log("Received Ad Copy:", extractedAdCopy);
 
     // Combine all data
     const responseData = {
@@ -258,8 +242,19 @@ app.post("/createAd", async (req, res) => {
       adCopy: extractedAdCopy, // ✅ Store extracted ad copy
       headline: extractedHeadline, // ✅ Store extracted headline
     };
-    // Save the data to a CSV file
-    saveToCSV(responseData);
+    // ✅ Save the scraped ad in MongoDB instead of CSV
+    const newScrapedAd = new ScrapedAd({
+      productName,
+      productDescription,
+      targetDescription,
+      productImages,
+      adCopy: extractedAdCopy,
+      headline: extractedHeadline,
+      url, // ✅ Store the original product URL
+    });
+
+    await newScrapedAd.save();
+    console.log("✅ Scraped Ad saved to MongoDB:", newScrapedAd);
 
     // Send the response back to the client
     res.json(responseData);
@@ -294,58 +289,68 @@ app.post("/generateAdPrompt", async (req, res) => {
 
   try {
     // Construct a prompt for GPT-4 based on manual entry
-    const prompt = `Generate an engaging ad for the following product:
-    Brand: ${brandName}
-    Product: ${productName}
-    Description: ${productDescription}
-    Target Audience: ${targetAudience}
-    Unique Selling Points: ${uniqueSellingPoints}
-    
-    Make sure to return:
-    - "Headline: ..." (Catchy ad headline)
-    - "Ad copy: ..." (Ad description in a paragraph)`;
+    const prompt = `You are an AI that generates ads based on 
+    feature+benefit+meaning
+    feature = what it is
+    benefit = what it does
+    meaning = what it means to the buyer/reader/prospect
+    formula = it____(feature)so you can ____(benefit)which means_________(meaning)
+    Using this formula, create an advertisement and a headline for:
+    - Product Name: ${productName}
+    - Features: ${productDescription}
+    - Target Audience: General`;
 
-    const gptResponse = await axios.post(
-      "https://api.openai.com/v1/chat/completions",
+    const claudeResponse = await axios.post(
+      "https://api.anthropic.com/v1/messages", // ✅ Correct Endpoint
       {
-        model: "gpt-4",
+        model: "claude-3-opus-20240229", // ✅ Ensure this model is accessible
+        max_tokens: 300, // ✅ Correct field name
+        temperature: 0.7, // Optional: Adjust creativity
         messages: [
-          { role: "system", content: "You are an AI that generates ad copy." },
-          { role: "user", content: prompt },
+          // ✅ Correct format for Anthropic API
+          { role: "user", content: `\n\nHuman: ${prompt}\n\nAssistant:` },
         ],
-        max_tokens: 150,
       },
       {
         headers: {
-          Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+          "x-api-key": process.env.CLAUDE_API_KEY,
+          "anthropic-version": "2023-06-01",
+          "content-type": "application/json",
         },
       }
     );
 
     // ✅ Debugging: Log the entire GPT response
     console.log(
-      "🔵 OpenAI Response:",
-      JSON.stringify(gptResponse.data, null, 2)
+      "🔵 Claude Response:",
+      JSON.stringify(claudeResponse.data, null, 2)
     );
 
     // ✅ Try extracting Headline explicitly
-    const fullResponse = gptResponse.data.choices?.[0]?.message?.content || "";
-    const headlineMatch = fullResponse.match(/Headline:\s*["“](.*?)["”]/);
-    let headline = headlineMatch ? headlineMatch[1] : "Headline Not Generated";
+    const fullResponse = claudeResponse.data?.content?.[0]?.text || "";
+    console.log("Claude Response Text:", fullResponse);
 
-    // ✅ If no headline is found, try extracting the first bold sentence as headline
-    if (!headline) {
-      const firstSentence = fullResponse.split(".")[0]; // First sentence before a period
-      headline =
-        firstSentence.length > 5 ? firstSentence.trim() : "Default Headline"; // Ensure it’s meaningful
+    // ✅ Extract Headline from Response
+    const headlineMatch = fullResponse.match(/Headline:\s*(.*?)(\n|$)/);
+    let extractedHeadline = headlineMatch
+      ? headlineMatch[1].trim()
+      : "Headline Not Generated";
+
+    // ✅ Fallback: Use first sentence if no headline is found
+    if (!extractedHeadline || extractedHeadline === "Headline Not Generated") {
+      const firstSentence = fullResponse.split(".")[0]; // Extract first sentence
+      extractedHeadline =
+        firstSentence.length > 5 ? firstSentence.trim() : "Default Headline";
     }
+
+    console.log("🟢 Extracted Headline:", extractedHeadline);
 
     // ✅ Extract ad copy (everything after "Ad copy:")
     const adCopyMatch = fullResponse.match(/Ad copy:\s*([\s\S]*)/);
     const adCopy = adCopyMatch ? adCopyMatch[1].trim() : fullResponse; // Fallback to full response
 
     console.log("🔵 Full OpenAI Response:", fullResponse);
-    console.log("🟢 Extracted Headline:", headline);
+    // console.log("🟢 Extracted Headline:", headline);
     console.log("🟢 Extracted Ad Copy:", adCopy);
 
     // ✅ Send back both headline and adCopy
@@ -356,7 +361,7 @@ app.post("/generateAdPrompt", async (req, res) => {
       targetAudience,
       uniqueSellingPoints,
       adCopy,
-      headline, // ✅ Now this is correctly extracted
+      headline: extractedHeadline, // ✅ Corrected!
     });
   } catch (error) {
     console.error("Error generating ad:", error);
