@@ -10,7 +10,6 @@ const connectDB = require("./config/db"); // ✅ Import DB Connection
 const compression = require("compression"); // Enable response compression
 const helmet = require("helmet"); // Improve security with helmet
 const ScrapedAd = require("./models/ScrapedAd");
-// const rateLimit = require("express-rate-limit"); //Apply rate limiting
 const adRoutes = require("./routes/adRoutes");
 require("dotenv").config();
 connectDB();
@@ -19,38 +18,37 @@ app.use(express.json());
 app.use(compression()); // Apply compression Middleware
 app.use(helmet()); //Secure HTTP Headers
 
-// ✅ Rate Limiting (Prevents DDoS & Abuse)
-// const limiter = rateLimit({
-//   windowMs: 15 * 60 * 1000, // 15 Minutes
-//   max: 500, // Limit each IP to 100 requests per windowMs
-//   message: "Too many requests please try again later",
-//   skip: (req, res) => req.ip === "192.168.29.1", // Bypass rate limit for your IP
-// });
-
-// app.use(limiter);
-
 // ✅ Default Allowed Origins (Prevent "undefined" issue)
 const allowedOrigins = process.env.CORS_ORIGIN
   ? process.env.CORS_ORIGIN.split(",")
-  : ["https://kogenie.com", "https://www.kogenie.com", "https://kogenie-current-frontend.onrender.com"];
+  : [
+      "https://kogenie.com",
+      "https://www.kogenie.com",
+      "https://kogenie-current-frontend.onrender.com",
+    ];
 
-app.use(cors({
-  origin: function (origin, callback) {
-    if (!origin) return callback(null, true); // ✅ Allow non-browser requests (like server requests)
-    if (allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(new Error("Not allowed by CORS"));
-    }
-  },
-  methods: ["GET", "POST", "PUT", "DELETE"],
-  credentials: true,
-}));
+app.use(
+  cors({
+    origin: function (origin, callback) {
+      if (!origin) return callback(null, true); // ✅ Allow non-browser requests (like server requests)
+      if (allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error("Not allowed by CORS"));
+      }
+    },
+    methods: ["GET", "POST", "PUT", "DELETE"],
+    credentials: true,
+  })
+);
 
 // ✅ Log Incoming Request Origins
 app.use((req, res, next) => {
   console.log("🔵 Incoming request:", req.method, req.url);
-  console.log("🟢 Request Origin:", req.headers.origin || "No Origin (Server Request)");
+  console.log(
+    "🟢 Request Origin:",
+    req.headers.origin || "No Origin (Server Request)"
+  );
   next();
 });
 app.use("/api/ads", adRoutes);
@@ -93,17 +91,16 @@ function getTargetDescription(gender, ageGroup) {
   return descriptions[gender]?.[ageGroup] || "";
 }
 
-
-
 // ✅ Function to Scrape Product Data using Puppeteer
 async function scrapeProductData(url) {
   console.log("🔵 Scraping URL:", url);
 
   // Launch Puppeteer
   const browser = await puppeteer.launch({
-    executablePath: process.env.CHROMIUM_PATH || puppeteer.executablePath(),
-    args: ["--no-sandbox", "--disable-setuid-sandbox"],
-    headless: true
+    executablePath: process.env.CHROMIUM_PATH || puppeteer.executablePath(), // ✅ Auto-detect Chromium
+    args: ["--no-sandbox", "--disable-setuid-sandbox"], // ✅ Required for Render
+    headless: "new", // ✅ Use the latest headless mode
+    timeout: 60000, // ✅ Increase timeout
   });
   const page = await browser.newPage();
 
