@@ -1,6 +1,6 @@
+require("dotenv").config();
 const express = require("express");
 const axios = require("axios");
-
 const fs = require("fs");
 const path = require("path");
 const puppeteer = require("puppeteer");
@@ -11,39 +11,38 @@ const compression = require("compression"); // Enable response compression
 const helmet = require("helmet"); // Improve security with helmet
 const ScrapedAd = require("./models/ScrapedAd");
 const adRoutes = require("./routes/adRoutes");
-require("dotenv").config();
 connectDB();
 const app = express();
 app.use(express.json());
 app.use(compression()); // Apply compression Middleware
 app.use(helmet()); //Secure HTTP Headers
 
-// ✅ Default Allowed Origins (Prevent "undefined" issue)
-
-
 const cors = require("cors");
 
 // ✅ Allowed frontend origins
 const allowedOrigins = [
+  "https://www.kogenie.com/",
   "https://www.kogenie.com",
   "https://kogenie.com",
   "https://kogenie-current-frontend.onrender.com",
-  "http://localhost:3000" // ✅ For local testing
+  "http://localhost:3000", // ✅ For local testing
 ];
 
-app.use(cors({
-  origin: function (origin, callback) {
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      console.error("❌ Blocked by CORS:", origin);
-      callback(new Error("Not allowed by CORS"));
-    }
-  },
-  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"], // ✅ Ensure OPTIONS is included
-  allowedHeaders: ["Content-Type", "Authorization"],
-  credentials: true
-}));
+app.use(
+  cors({
+    origin: function (origin, callback) {
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        console.error("❌ Blocked by CORS:", origin);
+        callback(new Error("Not allowed by CORS"));
+      }
+    },
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"], // ✅ Ensure OPTIONS is included
+    allowedHeaders: ["Content-Type", "Authorization"],
+    credentials: true,
+  })
+);
 
 // ✅ Ensure headers are set for all responses
 app.use((req, res, next) => {
@@ -51,7 +50,10 @@ app.use((req, res, next) => {
   if (allowedOrigins.includes(origin)) {
     res.setHeader("Access-Control-Allow-Origin", origin);
   }
-  res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+  res.setHeader(
+    "Access-Control-Allow-Methods",
+    "GET, POST, PUT, DELETE, OPTIONS"
+  );
   res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
   res.setHeader("Access-Control-Allow-Credentials", "true");
 
@@ -111,11 +113,13 @@ async function scrapeProductData(url) {
       "--disable-setuid-sandbox",
       "--disable-gpu",
       "--disable-dev-shm-usage",
-      "--disable-software-rasterizer"
+      "--disable-software-rasterizer",
     ],
-    headless: true,
-    executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || await puppeteer.executablePath()
+    headless: "new", // ✅ Avoids deprecation warnings
+    executablePath:
+      process.env.PUPPETEER_EXECUTABLE_PATH || puppeteer.executablePath(),
   });
+
   const page = await browser.newPage();
   await page.setUserAgent("Mozilla/5.0");
 
@@ -132,8 +136,11 @@ async function scrapeProductData(url) {
   }
 
   const $ = cheerio.load(content);
-  const productName = $("meta[property='og:title']").attr("content") || $("title").text();
-  const productDescription = $("meta[property='og:description']").attr("content") || $("meta[name='description']").attr("content");
+  const productName =
+    $("meta[property='og:title']").attr("content") || $("title").text();
+  const productDescription =
+    $("meta[property='og:description']").attr("content") ||
+    $("meta[name='description']").attr("content");
 
   const productImages = [];
   $("img").each((i, img) => {
@@ -373,7 +380,7 @@ app.post("/generateAdPrompt", async (req, res) => {
   }
 });
 
-const PORT = process.env.PORT || 5001;
+const PORT = process.env.PORT || 8080; // ✅ Use Render's assigned port
 app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+  console.log(`✅ Server running on port ${PORT}`);
 });
