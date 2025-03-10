@@ -113,11 +113,10 @@ async function scrapeProductData(url) {
       "--disable-setuid-sandbox",
       "--disable-gpu",
       "--disable-dev-shm-usage",
-      "--disable-software-rasterizer",
+      "--disable-software-rasterizer"
     ],
-    headless: "new", // ✅ Avoids deprecation warnings
-    executablePath:
-      process.env.PUPPETEER_EXECUTABLE_PATH || puppeteer.executablePath(),
+    headless: "new",  // ✅ Avoids deprecation warnings
+    executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || "/usr/bin/chromium"
   });
 
   const page = await browser.newPage();
