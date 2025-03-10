@@ -115,8 +115,8 @@ async function scrapeProductData(url) {
       "--disable-dev-shm-usage",
       "--disable-software-rasterizer"
     ],
-    headless: "new",  // ✅ Avoids deprecation warnings
-    executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || "/usr/bin/chromium"
+    headless: "new",  // ✅ Ensures a stable headless execution
+    executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || "/usr/bin/chromium-browser"
   });
 
   const page = await browser.newPage();
