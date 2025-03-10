@@ -108,10 +108,15 @@ async function scrapeProductData(url) {
   console.log("🔵 Scraping URL:", url);
 
   const browser = await puppeteer.launch({
-    args: chromium.args, // ✅ Use optimized serverless arguments
-    defaultViewport: chromium.defaultViewport,
-    executablePath: await chromium.executablePath(), // ✅ Uses pre-built Chromium
-    headless: chromium.headless, // ✅ Ensures stable headless mode
+    args: [
+      "--no-sandbox",
+      "--disable-setuid-sandbox",
+      "--disable-gpu",
+      "--disable-dev-shm-usage",
+      "--disable-software-rasterizer"
+    ],
+    headless: "new",
+    executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || "/usr/bin/google-chrome-stable"
   });
 
   const page = await browser.newPage();
