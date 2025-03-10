@@ -1,8 +1,12 @@
+
+
 require("dotenv").config();
 const express = require("express");
 const axios = require("axios");
 const fs = require("fs");
 const path = require("path");
+const puppeteer = require("puppeteer");
+const chromium = require("chromium");
 const cheerio = require("cheerio");
 const connectDB = require("./config/db"); // ✅ Import DB Connection
 const compression = require("compression"); // Enable response compression
@@ -14,8 +18,7 @@ const app = express();
 app.use(express.json());
 app.use(compression()); // Apply compression Middleware
 app.use(helmet()); //Secure HTTP Headers
-const chromium = require("chrome-aws-lambda");
-const puppeteer = require("puppeteer-core");
+
 const cors = require("cors");
 
 // ✅ Allowed frontend origins
@@ -378,7 +381,7 @@ app.post("/generateAdPrompt", async (req, res) => {
   }
 });
 
-const PORT = process.env.PORT || 8080; // ✅ Use Render's assigned port
+const PORT = process.env.PORT || 5001; // ✅ Use Render's assigned port
 app.listen(PORT, () => {
   console.log(`✅ Server running on port ${PORT}`);
 });
