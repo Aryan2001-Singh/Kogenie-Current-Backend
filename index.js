@@ -103,7 +103,6 @@ function getTargetDescription(gender, ageGroup) {
 }
 
 // ✅ Function to Scrape Product Data using Puppeteer
-
 async function scrapeProductData(url) {
   console.log("🔵 Scraping URL:", url);
 
@@ -115,8 +114,8 @@ async function scrapeProductData(url) {
       "--disable-dev-shm-usage",
       "--disable-software-rasterizer"
     ],
-    headless: "new",
-    executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || "/usr/bin/google-chrome-stable"
+    headless: "new",  // ✅ Ensures a stable headless execution
+    executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || "/usr/bin/chromium-browser"
   });
 
   const page = await browser.newPage();
@@ -124,7 +123,7 @@ async function scrapeProductData(url) {
 
   await page.goto(url, {
     waitUntil: "domcontentloaded",
-    timeout: 60000,
+    timeout: 60000, // ✅ Increase timeout
   });
 
   const content = await page.content();
