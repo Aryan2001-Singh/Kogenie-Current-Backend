@@ -14,19 +14,19 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "mongoose": "^8.12.1",
+    "node-cache": "^5.1.2",
+    "path": "^0.12.7",
     "axios": "^1.8.2",
     "cheerio": "^1.0.0",
-    "chrome-aws-lambda": "^10.1.0",
     "chromium": "^3.0.3",
+    "chrome-aws-lambda": "^10.1.0",
     "compression": "^1.8.0",
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
     "fs": "^0.0.1-security",
     "helmet": "^8.0.0",
-    "mongoose": "^8.12.1",
-    "node-cache": "^5.1.2",
-    "path": "^0.12.7",
-    "puppeteer-core": "^10.4.0"
+    "puppeteer-core": "^21.0.0"
   }
 }
