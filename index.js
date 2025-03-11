@@ -23,11 +23,10 @@ const cors = require("cors");
 
 // ✅ Allowed frontend origins
 const allowedOrigins = [
-  "https://www.kogenie.com/",
   "https://www.kogenie.com",
   "https://kogenie.com",
-  "https://kogenie-current-frontend.onrender.com",
-  "http://localhost:3000", // ✅ For local testing
+  "http://localhost:3000", 
+  "http://16.171.150.188"  // ✅ Add this line
 ];
 
 app.use(
@@ -36,13 +35,9 @@ app.use(
       if (!origin || allowedOrigins.includes(origin)) {
         callback(null, true);
       } else {
-        console.error("❌ Blocked by CORS:", origin);
         callback(new Error("Not allowed by CORS"));
       }
     },
-    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"], // ✅ Ensure OPTIONS is included
-    allowedHeaders: ["Content-Type", "Authorization"],
-    credentials: true,
   })
 );
 
