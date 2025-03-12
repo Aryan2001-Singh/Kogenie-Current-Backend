@@ -26,7 +26,7 @@ const allowedOrigins = [
   "https://www.kogenie.com",
   "https://kogenie.com",
   "http://localhost:3000",
-  "http://51.20.1.194:5001", // ✅ Temporarily allow HTTP for testing
+   // ✅ Temporarily allow HTTP for testing
 ];
 
 app.use(
@@ -108,18 +108,7 @@ function getTargetDescription(gender, ageGroup) {
 async function scrapeProductData(url) {
   console.log("🔵 Scraping URL:", url);
 
-  const browser = await puppeteer.launch({
-    args: [
-      "--no-sandbox",
-      "--disable-setuid-sandbox",
-      "--disable-gpu",
-      "--disable-dev-shm-usage",
-      "--disable-software-rasterizer",
-    ],
-    headless: "new",
-    executablePath:
-      process.env.PUPPETEER_EXECUTABLE_PATH || "/usr/bin/chromium-browser",
-  });
+  const browser = await launchBrowser(); // ✅ Use the fixed function
 
   const page = await browser.newPage();
 
@@ -129,9 +118,6 @@ async function scrapeProductData(url) {
   );
   await page.setExtraHTTPHeaders({
     "Accept-Language": "en-US,en;q=0.9",
-  });
-  await page.evaluateOnNewDocument(() => {
-    Object.defineProperty(navigator, "webdriver", { get: () => false });
   });
 
   try {

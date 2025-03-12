@@ -5,7 +5,8 @@
   "main": "index.js",
   "type": "commonjs",
   "scripts": {
-    "start": "apt-get update && apt-get install -y wget unzip && node index.js",
+    "postinstall": "apt-get update && apt-get install -y wget unzip && wget https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb && dpkg -i google-chrome-stable_current_amd64.deb || apt-get -fy install",
+    "start": "node index.js",
     "dev": "nodemon index.js",
     "build": "echo 'No build step required for backend'",
     "test": "echo \"Error: no test specified\" && exit 1"
