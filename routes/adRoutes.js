@@ -10,7 +10,7 @@ const mongoose = require("mongoose");
 router.use(compression());
 
 // ✅ Route: Store Ad Data
-router.post("/createAd", async (req, res) => {
+router.post("/store", async (req, res) => {
   try {
     const { brandName, productName, productDescription, targetAudience, uniqueSellingPoints, adCopy, headline, userEmail } = req.body;
 
