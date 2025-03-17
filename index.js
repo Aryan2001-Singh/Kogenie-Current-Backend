@@ -28,7 +28,6 @@ const limiter = rateLimit({
 
 app.use(limiter);
 
-
 const cors = require("cors");
 
 // ✅ Allowed frontend origins
@@ -117,6 +116,7 @@ function getTargetDescription(gender, ageGroup) {
 
 // ✅ Function to Scrape Product Data using Puppeteer
 puppeteer.use(StealthPlugin());
+
 async function scrapeProductData(url) {
   console.log("🔵 Scraping URL:", url);
   
