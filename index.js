@@ -3,7 +3,8 @@ const express = require("express");
 const axios = require("axios");
 const fs = require("fs");
 const path = require("path");
-// const puppeteer = require("puppeteer");
+const puppeteer = require("puppeteer-extra");
+const StealthPlugin = require("puppeteer-extra-plugin-stealth");
 const chromium = require("chromium");
 const cheerio = require("cheerio");
 const connectDB = require("./config/db"); // ✅ Import DB Connection
@@ -16,17 +17,27 @@ const app = express();
 app.use(express.json());
 app.use(compression()); // Apply compression Middleware
 app.use(helmet()); //Secure HTTP Headers
-const puppeteer = require("puppeteer-extra");
-const StealthPlugin = require("puppeteer-extra-plugin-stealth");
-puppeteer.use(StealthPlugin());
+
+const rateLimit = require("express-rate-limit");
+
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, //15 minutes
+  max: 100, //Limit each IP to 100 requests per windowMs
+  message: "Too many requests from this IP, please trying again later!"
+});
+
+app.use(limiter);
+
 
 const cors = require("cors");
 
+// ✅ Allowed frontend origins
 const allowedOrigins = [
+  "https://www.kogenie.com/",
   "https://www.kogenie.com",
   "https://kogenie.com",
-  "http://localhost:3000",
-   // ✅ Temporarily allow HTTP for testing
+  "https://kogenie-current-frontend.onrender.com",
+  "http://localhost:3000", // ✅ For local testing
 ];
 
 app.use(
@@ -35,27 +46,28 @@ app.use(
       if (!origin || allowedOrigins.includes(origin)) {
         callback(null, true);
       } else {
+        console.error("❌ Blocked by CORS:", origin);
         callback(new Error("Not allowed by CORS"));
       }
     },
-    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"], // ✅ Ensure OPTIONS is included
     allowedHeaders: ["Content-Type", "Authorization"],
-    credentials: true, // ✅ Fix: Allow credentials
+    credentials: true,
   })
 );
 
-// ✅ Ensure CORS headers are applied to ALL responses
+// ✅ Ensure headers are set for all responses
 app.use((req, res, next) => {
   const origin = req.headers.origin;
   if (allowedOrigins.includes(origin)) {
     res.setHeader("Access-Control-Allow-Origin", origin);
-    res.setHeader("Access-Control-Allow-Credentials", "true");
   }
   res.setHeader(
     "Access-Control-Allow-Methods",
     "GET, POST, PUT, DELETE, OPTIONS"
   );
   res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+  res.setHeader("Access-Control-Allow-Credentials", "true");
 
   if (req.method === "OPTIONS") {
     return res.sendStatus(200);
@@ -104,62 +116,49 @@ function getTargetDescription(gender, ageGroup) {
 }
 
 // ✅ Function to Scrape Product Data using Puppeteer
-
+puppeteer.use(StealthPlugin());
 async function scrapeProductData(url) {
   console.log("🔵 Scraping URL:", url);
-
-  const browser = await launchBrowser(); // ✅ Use the fixed function
-
-  const page = await browser.newPage();
-
-  // **Mimic a Real Browser**
-  await page.setUserAgent(
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
-  );
-  await page.setExtraHTTPHeaders({
-    "Accept-Language": "en-US,en;q=0.9",
+  
+  const browser = await puppeteer.launch({
+    executablePath: "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+    headless: "new",
+    args: [
+      "--no-sandbox", "--disable-gpu"
+    ],
   });
 
-  try {
-    await page.goto(url, {
-      waitUntil: "domcontentloaded",
-      timeout: 60000,
-    });
+  const page = await browser.newPage();
+  await page.setUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64)");
+  await page.goto(url, { waitUntil: "domcontentloaded", timeout: 60000 });
 
-    console.log("✅ Page Loaded Successfully");
+  const content = await page.content();
+  await browser.close();
 
-    const content = await page.content();
-    if (!content || content.length === 0) {
-      throw new Error("Failed to load webpage content");
-    }
-
-    const $ = cheerio.load(content);
-    const productName =
-      $("meta[property='og:title']").attr("content") || $("title").text();
-    const productDescription =
-      $("meta[property='og:description']").attr("content") ||
-      $("meta[name='description']").attr("content");
-
-    const productImages = [];
-    $("img").each((i, img) => {
-      let src = $(img).attr("src");
-      if (src && !src.startsWith("data:image")) {
-        if (!src.startsWith("http")) {
-          src = new URL(src, url).href;
-        }
-        productImages.push(src);
-      }
-    });
-
-    await browser.close();
-    return { productName, productDescription, productImages };
-  } catch (error) {
-    console.error("❌ Scraping Error:", error);
-    await browser.close();
-    throw error;
+  if (!content || content.length === 0) {
+    throw new Error("Failed to load webpage content");
   }
-}
 
+  const $ = cheerio.load(content);
+  const productName =
+    $("meta[property='og:title']").attr("content") || $("title").text();
+  const productDescription =
+    $("meta[property='og:description']").attr("content") ||
+    $("meta[name='description']").attr("content");
+
+  const productImages = [];
+  $("img").each((i, img) => {
+    let src = $(img).attr("src");
+    if (src && !src.startsWith("data:image")) {
+      if (!src.startsWith("http")) {
+        src = new URL(src, url).href;
+      }
+      productImages.push(src);
+    }
+  });
+
+  return { productName, productDescription, productImages };
+}
 // Endpoint: Create Ad (via scraping)
 app.post("/createAd", async (req, res) => {
   const { url, gender, ageGroup } = req.body;
@@ -385,7 +384,8 @@ app.post("/generateAdPrompt", async (req, res) => {
   }
 });
 
-const PORT = process.env.PORT || 5001; // ✅ Use Render's assigned port
+const PORT = process.env.PORT || 8080; // ✅ Use Render's assigned port
 app.listen(PORT, () => {
   console.log(`✅ Server running on port ${PORT}`);
 });
+
