@@ -43,7 +43,6 @@ const allowedOrigins = [
   "https://www.kogenie.com/",
   "https://www.kogenie.com",
   "https://kogenie.com",
-  "https://kogenie-current-frontend.onrender.com",
   "http://localhost:3000", // ✅ For local testing
 ];
 
