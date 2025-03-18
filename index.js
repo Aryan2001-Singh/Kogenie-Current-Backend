@@ -3,27 +3,35 @@ const express = require("express");
 const axios = require("axios");
 const fs = require("fs");
 const path = require("path");
-const puppeteer = require("puppeteer-extra");
-const StealthPlugin = require("puppeteer-extra-plugin-stealth");
-const chromium = require("chromium");
+
 const cheerio = require("cheerio");
 const connectDB = require("./config/db"); // ✅ Import DB Connection
 const compression = require("compression"); // Enable response compression
 const helmet = require("helmet"); // Improve security with helmet
 const ScrapedAd = require("./models/ScrapedAd");
 const adRoutes = require("./routes/adRoutes");
+const logger = require("./utils/logger");
 connectDB();
+
+
 const app = express();
 app.use(express.json());
+app.use(
+  helmet({
+    contentSecurityPolicy: false, // Disable CSP if needed
+  })
+);
 app.use(compression()); // Apply compression Middleware
 app.use(helmet()); //Secure HTTP Headers
 
 const rateLimit = require("express-rate-limit");
 
 const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, //15 minutes
-  max: 100, //Limit each IP to 100 requests per windowMs
-  message: "Too many requests from this IP, please trying again later!"
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 50, // Reduce request limit to 50 per 15 minutes
+  message: "Too many requests, please try again later!",
+  standardHeaders: true, // Return rate limit info in headers
+  legacyHeaders: false, // Disable the `X-RateLimit-*` headers
 });
 
 app.use(limiter);
@@ -45,7 +53,7 @@ app.use(
       if (!origin || allowedOrigins.includes(origin)) {
         callback(null, true);
       } else {
-        console.error("❌ Blocked by CORS:", origin);
+        logger.error("❌ Blocked by CORS:", origin);
         callback(new Error("Not allowed by CORS"));
       }
     },
@@ -114,50 +122,48 @@ function getTargetDescription(gender, ageGroup) {
   return descriptions[gender]?.[ageGroup] || "";
 }
 
-// ✅ Function to Scrape Product Data using Puppeteer
-puppeteer.use(StealthPlugin());
 
 async function scrapeProductData(url) {
-  console.log("🔵 Scraping URL:", url);
-  
-  const browser = await puppeteer.launch({
-    executablePath: "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
-    headless: "new",
-    args: [
-      "--no-sandbox", "--disable-gpu"
-    ],
-  });
+  logger.info("🔵 Scraping URL using ScraperAPI:", url);
 
-  const page = await browser.newPage();
-  await page.setUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64)");
-  await page.goto(url, { waitUntil: "domcontentloaded", timeout: 60000 });
+  const apiKey = process.env.SCRAPER_API_KEY; // ✅ Ensure the API key is loaded correctly
+  const scraperUrl = `http://api.scraperapi.com?api_key=${apiKey}&url=${encodeURIComponent(url)}`;
 
-  const content = await page.content();
-  await browser.close();
+  try {
+    // 🛠 Fetch the webpage using ScraperAPI
+    const response = await axios.get(scraperUrl);
 
-  if (!content || content.length === 0) {
-    throw new Error("Failed to load webpage content");
-  }
-
-  const $ = cheerio.load(content);
-  const productName =
-    $("meta[property='og:title']").attr("content") || $("title").text();
-  const productDescription =
-    $("meta[property='og:description']").attr("content") ||
-    $("meta[name='description']").attr("content");
-
-  const productImages = [];
-  $("img").each((i, img) => {
-    let src = $(img).attr("src");
-    if (src && !src.startsWith("data:image")) {
-      if (!src.startsWith("http")) {
-        src = new URL(src, url).href;
-      }
-      productImages.push(src);
+    if (!response.data) {
+      throw new Error("❌ Failed to fetch webpage content");
     }
-  });
 
-  return { productName, productDescription, productImages };
+    logger.info("✅ Scraping successful!");
+
+    // ✅ Parse HTML using Cheerio
+    const $ = cheerio.load(response.data);
+
+    const productName =
+      $("meta[property='og:title']").attr("content") || $("title").text();
+    const productDescription =
+      $("meta[property='og:description']").attr("content") ||
+      $("meta[name='description']").attr("content");
+
+    const productImages = [];
+    $("img").each((i, img) => {
+      let src = $(img).attr("src");
+      if (src && !src.startsWith("data:image")) {
+        if (!src.startsWith("http")) {
+          src = new URL(src, url).href;
+        }
+        productImages.push(src);
+      }
+    });
+
+    return { productName, productDescription, productImages };
+  } catch (error) {
+    logger.error("❌ ScraperAPI Error:", error.message);
+    return null;
+  }
 }
 // Endpoint: Create Ad (via scraping)
 app.post("/createAd", async (req, res) => {
@@ -168,7 +174,7 @@ app.post("/createAd", async (req, res) => {
   }
 
   try {
-    console.log("Received URL:", url);
+    logger.info("Received URL:", url);
 
     // ✅ Scrape product data using Puppeteer
     const { productName, productDescription, productImages } =
@@ -179,7 +185,7 @@ app.post("/createAd", async (req, res) => {
         .status(500)
         .json({ message: "Failed to extract product details" });
     }
-    console.log("✅ Scraped Data:", {
+    logger.info("✅ Scraped Data:", {
       productName,
       productDescription,
       productImages,
@@ -220,7 +226,7 @@ app.post("/createAd", async (req, res) => {
     );
 
     const fullResponse = claudeResponse.data?.content?.[0]?.text || "";
-    console.log("Claude Response Text:", fullResponse);
+    logger.info("Claude Response Text:", fullResponse);
 
     // ✅ Extract Headline from Response
     const headlineMatch = fullResponse.match(/Headline:\s*(.*?)(\n|$)/);
@@ -235,16 +241,16 @@ app.post("/createAd", async (req, res) => {
         firstSentence.length > 5 ? firstSentence.trim() : "Default Headline";
     }
 
-    console.log("🟢 Extracted Headline:", extractedHeadline);
+    logger.info("🟢 Extracted Headline:", extractedHeadline);
 
     // ✅ Extract Ad Copy (everything after "Ad copy:")
     const adCopyMatch = fullResponse.match(/Ad copy:\s*([\s\S]*)/);
     const extractedAdCopy = adCopyMatch ? adCopyMatch[1].trim() : fullResponse; // Fallback
 
-    console.log("🔵 Full OpenAI Response:", fullResponse);
-    console.log("🟢 Extracted Headline:", extractedHeadline);
-    console.log("🟢 Extracted Ad Copy:", extractedAdCopy);
-    console.log("Received Ad Copy:", extractedAdCopy);
+    logger.info("🔵 Full OpenAI Response:", fullResponse);
+    logger.info("🟢 Extracted Headline:", extractedHeadline);
+    logger.info("🟢 Extracted Ad Copy:", extractedAdCopy);
+    logger.info("Received Ad Copy:", extractedAdCopy);
 
     // Combine all data
     const responseData = {
@@ -267,12 +273,12 @@ app.post("/createAd", async (req, res) => {
     });
 
     await newScrapedAd.save();
-    console.log("✅ Scraped Ad saved to MongoDB:", newScrapedAd);
+    logger.info("✅ Scraped Ad saved to MongoDB:", newScrapedAd);
 
     // Send the response back to the client
     res.json(responseData);
   } catch (error) {
-    console.error("Error generating ad:", error);
+    logger.error("Error generating ad:", error);
     res
       .status(500)
       .json({ message: "Error generating ad", error: error.message });
@@ -334,14 +340,14 @@ app.post("/generateAdPrompt", async (req, res) => {
     );
 
     // ✅ Debugging: Log the entire GPT response
-    console.log(
+    logger.info(
       "🔵 Claude Response:",
       JSON.stringify(claudeResponse.data, null, 2)
     );
 
     // ✅ Try extracting Headline explicitly
     const fullResponse = claudeResponse.data?.content?.[0]?.text || "";
-    console.log("Claude Response Text:", fullResponse);
+    logger.info("Claude Response Text:", fullResponse);
 
     // ✅ Extract Headline from Response
     const headlineMatch = fullResponse.match(/Headline:\s*(.*?)(\n|$)/);
@@ -356,15 +362,15 @@ app.post("/generateAdPrompt", async (req, res) => {
         firstSentence.length > 5 ? firstSentence.trim() : "Default Headline";
     }
 
-    console.log("🟢 Extracted Headline:", extractedHeadline);
+    logger.info("🟢 Extracted Headline:", extractedHeadline);
 
     // ✅ Extract ad copy (everything after "Ad copy:")
     const adCopyMatch = fullResponse.match(/Ad copy:\s*([\s\S]*)/);
     const adCopy = adCopyMatch ? adCopyMatch[1].trim() : fullResponse; // Fallback to full response
 
-    console.log("🔵 Full OpenAI Response:", fullResponse);
-    // console.log("🟢 Extracted Headline:", headline);
-    console.log("🟢 Extracted Ad Copy:", adCopy);
+    logger.info("🔵 Full OpenAI Response:", fullResponse);
+    // logger.info("🟢 Extracted Headline:", headline);
+    logger.info("🟢 Extracted Ad Copy:", adCopy);
 
     // ✅ Send back both headline and adCopy
     res.json({
@@ -377,7 +383,7 @@ app.post("/generateAdPrompt", async (req, res) => {
       headline: extractedHeadline, // ✅ Corrected!
     });
   } catch (error) {
-    console.error("Error generating ad:", error);
+    logger.error("Error generating ad:", error);
     res
       .status(500)
       .json({ message: "Error generating ad", error: error.message });
@@ -386,6 +392,7 @@ app.post("/generateAdPrompt", async (req, res) => {
 
 const PORT = process.env.PORT || 8080; // ✅ Use Render's assigned port
 app.listen(PORT, () => {
-  console.log(`✅ Server running on port ${PORT}`);
+  logger.info(`✅ Server running on port ${PORT}`);
 });
+
 

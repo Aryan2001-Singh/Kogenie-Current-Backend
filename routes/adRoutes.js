@@ -5,6 +5,7 @@ const NodeCache = require("node-cache"); // ✅ Import NodeCache for caching
 const cache = new NodeCache({ stdTTL: 300, checkperiod: 320 }); // Cache expires in 5 minutes
 const compression = require("compression"); // ✅ Enable response compression
 const mongoose = require("mongoose");
+const logger = require("../utils/logger");
 
 // ✅ Apply Compression Middleware
 router.use(compression());
@@ -36,7 +37,7 @@ router.post("/store", async (req, res) => {
     
     res.status(201).json({ message: "✅ Ad stored successfully" });
   } catch (error) {
-    console.error("❌ Error saving ad:", error);
+    logger.error("❌ Error saving ad:", error);
     res.status(500).json({ message: "Error saving ad", error: error.message });
   }
 });
@@ -58,7 +59,7 @@ router.get("/fetch", async (req, res) => {
     
     res.status(200).json({ fromCache: false, ads });
   } catch (error) {
-    console.error("❌ Error fetching ads:", error);
+    logger.error("❌ Error fetching ads:", error);
     res.status(500).json({ message: "Error fetching ads", error: error.message });
   }
 });
@@ -69,7 +70,7 @@ router.get("/", async (req, res) => {
     const ads = await Ad.find().sort({ createdAt: -1 }).lean();
     res.status(200).json(ads);
   } catch (error) {
-    console.error("❌ Error fetching ads:", error);
+    logger.error("❌ Error fetching ads:", error);
     res.status(500).json({ message: "Error fetching ads", error: error.message });
   }
 });
