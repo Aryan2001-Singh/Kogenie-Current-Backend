@@ -390,7 +390,7 @@ app.post("/generateAdPrompt", async (req, res) => {
 });
 
 const PORT = process.env.PORT || 8080; // ✅ Use Render's assigned port
-app.listen(PORT, () => {
+app.listen(PORT, "0.0.0.0", () => {
   logger.info(`✅ Server running on port ${PORT}`);
 });
 
