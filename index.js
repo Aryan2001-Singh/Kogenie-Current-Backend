@@ -11,33 +11,13 @@ const helmet = require("helmet"); // Improve security with helmet
 const ScrapedAd = require("./models/ScrapedAd");
 const adRoutes = require("./routes/adRoutes");
 const logger = require("./utils/logger");
+const contactRoutes = require("./routes/contact");
+
+
 connectDB();
 
-
-const app = express();
-app.use(express.json());
-app.use(
-  helmet({
-    contentSecurityPolicy: false, // Disable CSP if needed
-  })
-);
-app.use(compression()); // Apply compression Middleware
-app.use(helmet()); //Secure HTTP Headers
-
-const rateLimit = require("express-rate-limit");
-
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 50, // Reduce request limit to 50 per 15 minutes
-  message: "Too many requests, please try again later!",
-  standardHeaders: true, // Return rate limit info in headers
-  legacyHeaders: false, // Disable the `X-RateLimit-*` headers
-});
-
-app.use(limiter);
-
 const cors = require("cors");
-
+const app = express();
 // ✅ Allowed frontend origins
 const allowedOrigins = [
   "https://www.kogenie.com/",
@@ -61,6 +41,38 @@ app.use(
     credentials: true,
   })
 );
+
+
+app.use(express.json());
+
+app.use(
+  helmet({
+    contentSecurityPolicy: false, // Disable CSP if needed
+  })
+);
+app.use(compression()); // Apply compression Middleware
+app.use(helmet()); //Secure HTTP Headers
+
+const rateLimit = require("express-rate-limit");
+
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 50, // Reduce request limit to 50 per 15 minutes
+  message: "Too many requests, please try again later!",
+  standardHeaders: true, // Return rate limit info in headers
+  legacyHeaders: false, // Disable the `X-RateLimit-*` headers
+});
+
+app.use(limiter);
+
+
+
+
+
+
+
+// for send us a message page 
+app.use("/api", contactRoutes);
 
 // ✅ Ensure headers are set for all responses
 app.use((req, res, next) => {
