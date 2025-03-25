@@ -204,7 +204,7 @@ app.post("/createAd", async (req, res) => {
     const targetDescription = getTargetDescription(gender, ageGroup);
 
     // Prepare prompt for GPT
-    const prompt = `You are an AI that generates ads based on 
+    const prompt = `You are an AI that generates 5 ads based on 
     feature+benefit+meaning
     feature = what it is
     benefit = what it does
@@ -319,7 +319,7 @@ app.post("/generateAdPrompt", async (req, res) => {
 
   try {
     // Construct a prompt for GPT-4 based on manual entry
-    const prompt = `You are an AI that generates ads based on 
+    const prompt = `You are an AI that generates 5 ads based on 
     feature+benefit+meaning
     feature = what it is
     benefit = what it does
