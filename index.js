@@ -296,7 +296,7 @@ app.post("/generateAdPrompt", async (req, res) => {
     brandName,
     productName,
     productDescription,
-    // targetAudience,
+    targetAudience,
     uniqueSellingPoints,
     productFor,
     problemItSolves,
@@ -308,7 +308,7 @@ app.post("/generateAdPrompt", async (req, res) => {
     !brandName ||
     !productName ||
     !productDescription ||
-    // !targetAudience ||
+    !targetAudience ||
     !uniqueSellingPoints ||
     !productFor ||
     !problemItSolves ||
@@ -328,12 +328,11 @@ app.post("/generateAdPrompt", async (req, res) => {
     Using this formula, create an advertisement and a headline for:
     - Product Name: ${productName}
     - Features: ${productDescription}
+    - Target Audience ${targetAudience}
     - Unique Selling Points ${uniqueSellingPoints}
     - Product For ${productFor}
     - Problem it Solves - ${problemItSolves}
-    - Use Location - ${useLocation}
-    `;
-    // - Target Audience ${targetAudience}
+    - Use Location - ${useLocation}`;
 
     const claudeResponse = await axios.post(
       "https://api.anthropic.com/v1/messages", // ✅ Correct Endpoint
