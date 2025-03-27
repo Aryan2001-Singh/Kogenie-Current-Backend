@@ -13,7 +13,6 @@ const adRoutes = require("./routes/adRoutes");
 const logger = require("./utils/logger");
 const contactRoutes = require("./routes/contact");
 
-
 connectDB();
 
 const cors = require("cors");
@@ -42,7 +41,6 @@ app.use(
   })
 );
 
-
 app.use(express.json());
 
 app.use(
@@ -54,6 +52,7 @@ app.use(compression()); // Apply compression Middleware
 app.use(helmet()); //Secure HTTP Headers
 
 const rateLimit = require("express-rate-limit");
+const { unique } = require("next/dist/build/utils");
 
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
@@ -65,13 +64,7 @@ const limiter = rateLimit({
 
 app.use(limiter);
 
-
-
-
-
-
-
-// for send us a message page 
+// for send us a message page
 app.use("/api", contactRoutes);
 
 // ✅ Ensure headers are set for all responses
@@ -133,12 +126,13 @@ function getTargetDescription(gender, ageGroup) {
   return descriptions[gender]?.[ageGroup] || "";
 }
 
-
 async function scrapeProductData(url) {
   logger.info("🔵 Scraping URL using ScraperAPI:", url);
 
   const apiKey = process.env.SCRAPER_API_KEY; // ✅ Ensure the API key is loaded correctly
-  const scraperUrl = `http://api.scraperapi.com?api_key=${apiKey}&url=${encodeURIComponent(url)}`;
+  const scraperUrl = `http://api.scraperapi.com?api_key=${apiKey}&url=${encodeURIComponent(
+    url
+  )}`;
 
   try {
     // 🛠 Fetch the webpage using ScraperAPI
@@ -213,7 +207,7 @@ app.post("/createAd", async (req, res) => {
     Using this formula, create an advertisement and a headline for:
     - Product Name: ${productName}
     - Features: ${productDescription}
-    - Target Audience: General`;
+    - Target Audience: ${ageGroup},${gender}`;
 
     // Generate ad copy using OpenAI API
     const claudeResponse = await axios.post(
@@ -302,8 +296,11 @@ app.post("/generateAdPrompt", async (req, res) => {
     brandName,
     productName,
     productDescription,
-    targetAudience,
+    // targetAudience,
     uniqueSellingPoints,
+    productFor,
+    problemItSolves,
+    useLocation,
   } = req.body;
 
   // Validate the input fields
@@ -311,8 +308,11 @@ app.post("/generateAdPrompt", async (req, res) => {
     !brandName ||
     !productName ||
     !productDescription ||
-    !targetAudience ||
-    !uniqueSellingPoints
+    // !targetAudience ||
+    !uniqueSellingPoints ||
+    !productFor ||
+    !problemItSolves ||
+    !useLocation
   ) {
     return res.status(400).json({ message: "Missing required fields" });
   }
@@ -328,7 +328,12 @@ app.post("/generateAdPrompt", async (req, res) => {
     Using this formula, create an advertisement and a headline for:
     - Product Name: ${productName}
     - Features: ${productDescription}
-    - Target Audience: General`;
+    - Unique Selling Points ${uniqueSellingPoints}
+    - Product For ${productFor}
+    - Problem it Solves - ${problemItSolves}
+    - Use Location - ${useLocation}
+    `;
+    // - Target Audience ${targetAudience}
 
     const claudeResponse = await axios.post(
       "https://api.anthropic.com/v1/messages", // ✅ Correct Endpoint
@@ -405,5 +410,3 @@ const PORT = process.env.PORT || 8080; // ✅ Use Render's assigned port
 app.listen(PORT, "0.0.0.0", () => {
   logger.info(`✅ Server running on port ${PORT}`);
 });
-
-
