@@ -321,7 +321,7 @@ app.post("/generateAdPrompt", async (req, res) => {
 
   try {
     // Construct a prompt for GPT-4 based on manual entry
-    const prompt = `You are an AI that generates 5 ads based on 
+    const prompt = `You are an AI that generates ad based on 
     feature+benefit+meaning
     feature = what it is
     benefit = what it does
