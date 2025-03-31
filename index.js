@@ -298,7 +298,8 @@ app.post("/generateAdPrompt", async (req, res) => {
     productDescription,
     targetAudience,
     uniqueSellingPoints,
-    productFor,
+    brandVoice,
+    // productFor,
     problemItSolves,
     useLocation,
   } = req.body;
@@ -310,7 +311,8 @@ app.post("/generateAdPrompt", async (req, res) => {
     !productDescription ||
     !targetAudience ||
     !uniqueSellingPoints ||
-    !productFor ||
+    !brandVoice||
+    // !productFor ||
     !problemItSolves ||
     !useLocation
   ) {
@@ -330,9 +332,10 @@ app.post("/generateAdPrompt", async (req, res) => {
     - Features: ${productDescription}
     - Target Audience ${targetAudience}
     - Unique Selling Points ${uniqueSellingPoints}
-    - Product For ${productFor}
+    - Brand Voice ${brandVoice}
     - Problem it Solves - ${problemItSolves}
-    - Use Location - ${useLocation}`;
+    - Use Location - ${useLocation}
+    - Use these above parameters to build a solid ad for the user and keep it below 30 words `;
 
     const claudeResponse = await axios.post(
       "https://api.anthropic.com/v1/messages", // ✅ Correct Endpoint
