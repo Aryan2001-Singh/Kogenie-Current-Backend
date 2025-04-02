@@ -12,6 +12,7 @@ const ScrapedAd = require("./models/ScrapedAd");
 const adRoutes = require("./routes/adRoutes");
 const logger = require("./utils/logger");
 const contactRoutes = require("./routes/contact");
+const Ad = require("./models/Ad"); // ✅ Already exists? Great.
 
 connectDB();
 
@@ -53,6 +54,7 @@ app.use(helmet()); //Secure HTTP Headers
 
 const rateLimit = require("express-rate-limit");
 const { unique } = require("next/dist/build/utils");
+const { platform } = require("os");
 
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
@@ -299,9 +301,15 @@ app.post("/generateAdPrompt", async (req, res) => {
     targetAudience,
     uniqueSellingPoints,
     brandVoice,
-    // productFor,
+    awarenessStage,
+    tone,
+    goal,
+    theme,
     problemItSolves,
     useLocation,
+    platform,
+    persuasionBlocks = [],
+    userEmail,
   } = req.body;
 
   // Validate the input fields
@@ -311,31 +319,72 @@ app.post("/generateAdPrompt", async (req, res) => {
     !productDescription ||
     !targetAudience ||
     !uniqueSellingPoints ||
-    !brandVoice||
-    // !productFor ||
+    !brandVoice ||
+    !awarenessStage ||
+    !tone ||
+    !goal ||
+    !theme ||
     !problemItSolves ||
-    !useLocation
+    !useLocation ||
+    !platform ||
+    !persuasionBlocks.length ||
+    !userEmail
   ) {
-    return res.status(400).json({ message: "Missing required fields" });
+    return res.status(400).json({
+      message: "Missing required fields",
+      missing: {
+        brandName,
+        productName,
+        productDescription,
+        targetAudience,
+        uniqueSellingPoints,
+        brandVoice,
+        awarenessStage,
+        tone,
+        goal,
+        theme,
+        problemItSolves,
+        useLocation,
+        platform,
+        persuasionBlocks,
+      },
+    });
   }
+
+  logger.info(
+    "🔍 Request Body Received:\n" + JSON.stringify(req.body, null, 2)
+  );
 
   try {
     // Construct a prompt for GPT-4 based on manual entry
-    const prompt = `You are an AI that generates ad based on 
-    feature+benefit+meaning
-    feature = what it is
-    benefit = what it does
-    meaning = what it means to the buyer/reader/prospect
-    formula = it____(feature)so you can ____(benefit)which means_________(meaning)
-    Using this formula, create an advertisement and a headline for:
-    - Product Name: ${productName}
-    - Features: ${productDescription}
-    - Target Audience ${targetAudience}
-    - Unique Selling Points ${uniqueSellingPoints}
-    - Brand Voice ${brandVoice}
-    - Problem it Solves - ${problemItSolves}
-    - Use Location - ${useLocation}
-    - Use these above parameters to build a solid ad for the user and keep it below 30 words `;
+    const prompt = `You are an AI that generates compelling ads using selected persuasion building blocks
+
+Selected Blocks: ${persuasionBlocks.join(", ")}
+
+Definitions:
+- Feature = what it is
+- Benefit = what it does
+- Meaning = what it means to the buyer
+- Attention = capture with a hook
+- Interest = build curiosity
+- Desire = make them want it
+- Action = drive them to act
+
+Using these elements, generate an ad headline and copy based on:
+- Product Name: ${productName}
+- Product Description: ${productDescription}
+- Unique Selling Points: ${uniqueSellingPoints}
+- Target Audience: ${targetAudience}
+- Brand Voice: ${brandVoice}
+- Customer Awareness Stage: ${awarenessStage}
+- Tone: ${tone}
+- Goal: ${goal}
+- Theme: ${theme}
+- Problem it Solves: ${problemItSolves}
+- Location: ${useLocation}
+- Platform: ${platform}
+
+Keep the ad under 30 words. Make it emotionally resonant and aligned with the brand voice.`;
 
     const claudeResponse = await axios.post(
       "https://api.anthropic.com/v1/messages", // ✅ Correct Endpoint
@@ -390,6 +439,21 @@ app.post("/generateAdPrompt", async (req, res) => {
     // logger.info("🟢 Extracted Headline:", headline);
     logger.info("🟢 Extracted Ad Copy:", adCopy);
 
+    // ✅ Save to MongoDB
+    const newManualAd = new Ad({
+      brandName,
+      productName,
+      productDescription,
+      targetAudience,
+      uniqueSellingPoints,
+      adCopy,
+      headline:extractedHeadline,
+      userEmail,
+    });
+
+    await newManualAd.save();
+    logger.info("✅ Manual Ad saved to MongoDB:", newManualAd);
+    
     // ✅ Send back both headline and adCopy
     res.json({
       brandName,
