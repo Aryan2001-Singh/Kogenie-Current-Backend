@@ -384,7 +384,7 @@ Using these elements, generate an ad headline and copy based on:
 - Location: ${useLocation}
 - Platform: ${platform}
 
-Keep the ad under 30 words. Make it emotionally resonant and aligned with the brand voice.`;
+Keep the ad under 30 words. Make it emotionally resonant and aligned with the brand voice. And in the last don't ask suggestions as it is displaying in the ad copy as well.`;
 
     const claudeResponse = await axios.post(
       "https://api.anthropic.com/v1/messages", // ✅ Correct Endpoint
@@ -414,7 +414,7 @@ Keep the ad under 30 words. Make it emotionally resonant and aligned with the br
         {
           text_prompts: [
             {
-              text: `High-quality professional product photo of ${productName}, by ${brandName}. ${productDescription} atleast 3`,
+              text: `High-quality professional product photo of ${productName}, by ${brandName}. ${productDescription}`,
             },
           ],
           cfg_scale: 7,
