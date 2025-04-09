@@ -422,6 +422,7 @@ Keep the ad under 30 words. Make it emotionally resonant and aligned with the br
           width: 1024,
           samples: 1,
           steps: 30,
+          output_format: "url",
         },
         {
           headers: {
@@ -432,10 +433,9 @@ Keep the ad under 30 words. Make it emotionally resonant and aligned with the br
         }
       );
 
-      const base64Image = imageResponse.data?.artifacts?.[0]?.base64;
-      imageUrl = base64Image
-        ? `data:image/png;base64,${base64Image}`
-        : "https://via.placeholder.com/512?text=Image+Unavailable";
+      imageUrl =
+        imageResponse.data?.artifacts?.[0]?.url ||
+        "https://via.placeholder.com/512?text=Image+Unavailable";
 
       logger.info("✅ Stability AI image generated:", imageUrl);
     } catch (error) {
