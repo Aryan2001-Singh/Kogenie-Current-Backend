@@ -158,11 +158,15 @@ async function scrapeProductData(url) {
     const productImages = [];
     $("img").each((i, img) => {
       let src = $(img).attr("src");
-      if (src && !src.startsWith("data:image")) {
-        if (!src.startsWith("http")) {
-          src = new URL(src, url).href;
+      if (src && src.length > 0 && !src.startsWith("data:image")) {
+        try {
+          const absoluteUrl = new URL(src, url).href;
+          if (absoluteUrl.startsWith("http")) {
+            productImages.push(absoluteUrl);
+          }
+        } catch (e) {
+          // Invalid image URL – skip
         }
-        productImages.push(src);
       }
     });
 
@@ -186,6 +190,7 @@ app.post("/createAd", async (req, res) => {
     // ✅ Scrape product data using Puppeteer
     const { productName, productDescription, productImages } =
       await scrapeProductData(url);
+      console.log("🖼 Scraped Product Images:", productImages);
 
     if (!productName || !productDescription) {
       return res
