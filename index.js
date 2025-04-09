@@ -406,6 +406,43 @@ Keep the ad under 30 words. Make it emotionally resonant and aligned with the br
       }
     );
 
+    let imageUrl = "";
+
+    try {
+      const imageResponse = await axios.post(
+        "https://api.stability.ai/v1/generation/stable-diffusion-xl-1024-v1-0/text-to-image",
+        {
+          text_prompts: [
+            {
+              text: `High-quality professional product photo of ${productName}, by ${brandName}. ${productDescription} atleast 3`,
+            },
+          ],
+          cfg_scale: 7,
+          height: 1024,
+          width: 1024,
+          samples: 1,
+          steps: 30,
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${process.env.STABILITY_API_KEY}`,
+            "Content-Type": "application/json",
+            Accept: "application/json",
+          },
+        }
+      );
+
+      const base64Image = imageResponse.data?.artifacts?.[0]?.base64;
+      imageUrl = base64Image
+        ? `data:image/png;base64,${base64Image}`
+        : "https://via.placeholder.com/512?text=Image+Unavailable";
+
+      logger.info("✅ Stability AI image generated:", imageUrl);
+    } catch (error) {
+      logger.warn("⚠️ Stability AI image generation failed:");
+      logger.warn(error.response?.data || error.message || error);
+    }
+
     // ✅ Debugging: Log the entire GPT response
     logger.info(
       "🔵 Claude Response:",
@@ -447,14 +484,15 @@ Keep the ad under 30 words. Make it emotionally resonant and aligned with the br
       targetAudience,
       uniqueSellingPoints,
       adCopy,
-      headline:extractedHeadline,
+      headline: extractedHeadline,
       userEmail,
+      productImages: [imageUrl], // ✅ Save image
     });
-
     await newManualAd.save();
     logger.info("✅ Manual Ad saved to MongoDB:", newManualAd);
-    
+
     // ✅ Send back both headline and adCopy
+
     res.json({
       brandName,
       productName,
@@ -462,7 +500,8 @@ Keep the ad under 30 words. Make it emotionally resonant and aligned with the br
       targetAudience,
       uniqueSellingPoints,
       adCopy,
-      headline: extractedHeadline, // ✅ Corrected!
+      headline: extractedHeadline,
+      productImages: [imageUrl], // ✅ Make sure this line exists
     });
   } catch (error) {
     logger.error("Error generating ad:", error);

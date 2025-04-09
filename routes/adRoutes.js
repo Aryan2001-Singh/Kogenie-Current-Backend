@@ -13,9 +13,29 @@ router.use(compression());
 // ✅ Route: Store Ad Data
 router.post("/store", async (req, res) => {
   try {
-    const { brandName, productName, productDescription, targetAudience, uniqueSellingPoints, adCopy, headline, userEmail } = req.body;
+    const {
+      brandName,
+      productName,
+      productDescription,
+      targetAudience,
+      uniqueSellingPoints,
+      adCopy,
+      headline,
+      userEmail,
+      productImages = [], // ✅ NEW FIELD
+    } = req.body;
 
-    if (!brandName || !productName || !productDescription || !targetAudience || !uniqueSellingPoints || !adCopy || !headline || !userEmail) {
+    // ✅ Validate required fields
+    if (
+      !brandName ||
+      !productName ||
+      !productDescription ||
+      !targetAudience ||
+      !uniqueSellingPoints ||
+      !adCopy ||
+      !headline ||
+      !userEmail
+    ) {
       return res.status(400).json({ message: "Missing required fields" });
     }
 
@@ -27,14 +47,15 @@ router.post("/store", async (req, res) => {
       uniqueSellingPoints,
       adCopy,
       headline,
-      userEmail, 
+      userEmail,
+      productImages, // ✅ Include images when saving
     });
 
     await newAd.save();
-    
+
     // ✅ Clear cache when a new ad is added
     cache.del("ads");
-    
+
     res.status(201).json({ message: "✅ Ad stored successfully" });
   } catch (error) {
     logger.error("❌ Error saving ad:", error);
@@ -45,18 +66,15 @@ router.post("/store", async (req, res) => {
 // ✅ Route: Fetch Ads with Caching & Indexing
 router.get("/fetch", async (req, res) => {
   try {
-    // ✅ Check if ads are already cached
     const cachedAds = cache.get("ads");
     if (cachedAds) {
       return res.status(200).json({ fromCache: true, ads: cachedAds });
     }
 
-    // ✅ Use Indexes to Speed Up Queries
     const ads = await Ad.find().sort({ createdAt: -1 }).lean();
-    
-    // ✅ Store ads in cache before sending response
+
     cache.set("ads", ads);
-    
+
     res.status(200).json({ fromCache: false, ads });
   } catch (error) {
     logger.error("❌ Error fetching ads:", error);
