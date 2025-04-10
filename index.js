@@ -13,6 +13,7 @@ const adRoutes = require("./routes/adRoutes");
 const logger = require("./utils/logger");
 const contactRoutes = require("./routes/contact");
 const Ad = require("./models/Ad"); // ✅ Already exists? Great.
+const cloudinary = require("./utils/cloudinary");
 
 connectDB();
 
