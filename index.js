@@ -433,9 +433,16 @@ Keep the ad under 30 words. Make it emotionally resonant and aligned with the br
       );
 
       const base64Image = imageResponse.data?.artifacts?.[0]?.base64;
-      imageUrl = base64Image
-        ? `data:image/png;base64,${base64Image}`
-        : "https://via.placeholder.com/512?text=Image+Unavailable";
+
+      if (base64Image) {
+        const uploadResult = await cloudinary.uploader.upload(
+          `data:image/png;base64,${base64Image}`,
+          { folder: "kogenie-ads" } // optional folder
+        );
+        imageUrl = uploadResult.secure_url;
+      } else {
+        imageUrl = "https://via.placeholder.com/512?text=Image+Unavailable";
+      }
 
       logger.info("✅ Stability AI image generated:", imageUrl);
     } catch (error) {
