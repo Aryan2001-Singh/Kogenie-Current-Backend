@@ -187,6 +187,23 @@ app.post("/createAd", async (req, res) => {
     // ✅ Scrape product data using Puppeteer
     const { productName, productDescription, productImages } =
       await scrapeProductData(url);
+      
+    const uploadedCloudinaryImages = [];
+
+    for (const imgUrl of productImages.slice(0, 5)) {
+      try {
+        const uploadRes = await cloudinary.uploader.upload(imgUrl, {
+          folder: "kogenie-scraped", // optional folder
+        });
+        uploadedCloudinaryImages.push(uploadRes.secure_url);
+      } catch (uploadErr) {
+        logger.warn(
+          "⚠️ Cloudinary upload failed for:",
+          imgUrl,
+          uploadErr.message
+        );
+      }
+    }
 
     if (!productName || !productDescription) {
       return res
@@ -264,7 +281,7 @@ app.post("/createAd", async (req, res) => {
     const responseData = {
       productName,
       productDescription,
-      productImages,
+      productImages: uploadedCloudinaryImages,
       targetDescription,
       adCopy: extractedAdCopy, // ✅ Store extracted ad copy
       headline: extractedHeadline, // ✅ Store extracted headline
@@ -274,7 +291,7 @@ app.post("/createAd", async (req, res) => {
       productName,
       productDescription,
       targetDescription,
-      productImages,
+      productImages: uploadedCloudinaryImages,
       adCopy: extractedAdCopy,
       headline: extractedHeadline,
       url, // ✅ Store the original product URL
