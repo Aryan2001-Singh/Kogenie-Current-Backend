@@ -1,16 +1,19 @@
 const express = require("express");
-const Ad = require("../models/Ad"); // ✅ Ensure correct model import
+const Ad = require("../models/Ad");
+const ScrapedAd = require("../models/ScrapedAd");
 const router = express.Router();
-const NodeCache = require("node-cache"); // ✅ Import NodeCache for caching
-const cache = new NodeCache({ stdTTL: 300, checkperiod: 320 }); // Cache expires in 5 minutes
-const compression = require("compression"); // ✅ Enable response compression
+const NodeCache = require("node-cache");
+const cache = new NodeCache({ stdTTL: 300, checkperiod: 320 });
+const compression = require("compression");
 const mongoose = require("mongoose");
 const logger = require("../utils/logger");
 
-// ✅ Apply Compression Middleware
+// ✅ Apply compression to all routes
 router.use(compression());
 
-// ✅ Route: Store Ad Data
+/**
+ * ✅ Store Ad (manual or scraped)
+ */
 router.post("/store", async (req, res) => {
   try {
     const {
@@ -22,24 +25,17 @@ router.post("/store", async (req, res) => {
       adCopy,
       headline,
       userEmail,
-      productImages = [], // ✅ NEW FIELD
+      productImages = [],
+      adType = "manual", // default is manual
     } = req.body;
 
-    // ✅ Validate required fields
-    if (
-      !brandName ||
-      !productName ||
-      !productDescription ||
-      !targetAudience ||
-      !uniqueSellingPoints ||
-      !adCopy ||
-      !headline ||
-      !userEmail
-    ) {
+    if (!productName || !productDescription || !adCopy || !headline) {
       return res.status(400).json({ message: "Missing required fields" });
     }
 
-    const newAd = new Ad({
+    const Model = adType === "scraped" ? ScrapedAd : Ad;
+
+    const newAd = new Model({
       brandName,
       productName,
       productDescription,
@@ -48,22 +44,27 @@ router.post("/store", async (req, res) => {
       adCopy,
       headline,
       userEmail,
-      productImages, // ✅ Include images when saving
+      productImages,
+      adType,
     });
 
     await newAd.save();
 
-    // ✅ Clear cache when a new ad is added
-    cache.del("ads");
+    cache.del("ads"); // Invalidate cache
 
-    res.status(201).json({ message: "✅ Ad stored successfully" });
+    res.status(201).json({
+      message: "✅ Ad stored successfully",
+      adId: newAd._id.toString(),
+    });
   } catch (error) {
     logger.error("❌ Error saving ad:", error);
     res.status(500).json({ message: "Error saving ad", error: error.message });
   }
 });
 
-// ✅ Route: Fetch Ads with Caching & Indexing
+/**
+ * ✅ Fetch Ads with Caching
+ */
 router.get("/fetch", async (req, res) => {
   try {
     const cachedAds = cache.get("ads");
@@ -72,7 +73,6 @@ router.get("/fetch", async (req, res) => {
     }
 
     const ads = await Ad.find().sort({ createdAt: -1 }).lean();
-
     cache.set("ads", ads);
 
     res.status(200).json({ fromCache: false, ads });
@@ -82,7 +82,9 @@ router.get("/fetch", async (req, res) => {
   }
 });
 
-// ✅ New Route: Fetch all ads without `/fetch`
+/**
+ * ✅ Fetch All Ads (Uncached)
+ */
 router.get("/", async (req, res) => {
   try {
     const ads = await Ad.find().sort({ createdAt: -1 }).lean();
@@ -90,6 +92,46 @@ router.get("/", async (req, res) => {
   } catch (error) {
     logger.error("❌ Error fetching ads:", error);
     res.status(500).json({ message: "Error fetching ads", error: error.message });
+  }
+});
+
+/**
+ * ✅ Feedback Submission
+ */
+router.post("/feedback", async (req, res) => {
+  const { adId, adType, rating, comment } = req.body;
+
+  if (!adId || !adType || typeof rating !== "number") {
+    return res.status(400).json({ message: "Missing required feedback fields" });
+  }
+
+  try {
+    // ✅ Use model name string to avoid Mongoose cache issues
+    const modelName = adType === "scraped" ? "ScrapedAd" : "Ad";
+    const Model = mongoose.model(modelName);
+
+    const updatedAd = await Model.findByIdAndUpdate(
+      adId,
+      {
+        $set: {
+          feedback: {
+            rating,
+            comment,
+          },
+        },
+      },
+      { new: true }
+    );
+
+    if (!updatedAd) {
+      return res.status(404).json({ message: "Ad not found" });
+    }
+
+    logger.info("📝 Feedback saved successfully:", updatedAd._id);
+    res.status(200).json({ message: "Feedback saved", ad: updatedAd });
+  } catch (error) {
+    logger.error("❌ Error saving feedback:", error);
+    res.status(500).json({ message: "Error saving feedback", error: error.message });
   }
 });
 

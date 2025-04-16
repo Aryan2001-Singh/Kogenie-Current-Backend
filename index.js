@@ -14,6 +14,10 @@ const logger = require("./utils/logger");
 const contactRoutes = require("./routes/contact");
 const Ad = require("./models/Ad"); // ✅ Already exists? Great.
 const cloudinary = require("./utils/cloudinary");
+const metaAuthRoutes = require("./routes/metaAuthRoutes");
+const publishRoutes = require("./routes/publishRoutes");
+const insightRoutes = require("./routes/insightRoutes");
+
 
 connectDB();
 
@@ -44,6 +48,7 @@ app.use(
 );
 
 app.use(express.json());
+app.use("/api/insights", insightRoutes);
 
 app.use(
   helmet({
@@ -51,7 +56,10 @@ app.use(
   })
 );
 app.use(compression()); // Apply compression Middleware
-app.use(helmet()); //Secure HTTP Headers
+
+app.get("/health", (req, res) => {
+  res.status(200).json({ status: "ok", uptime: process.uptime() });
+});
 
 const rateLimit = require("express-rate-limit");
 const { unique } = require("next/dist/build/utils");
@@ -69,6 +77,8 @@ app.use(limiter);
 
 // for send us a message page
 app.use("/api", contactRoutes);
+app.use("/api/auth", metaAuthRoutes);
+app.use("/api/publish", publishRoutes);
 
 // ✅ Ensure headers are set for all responses
 app.use((req, res, next) => {
@@ -187,7 +197,7 @@ app.post("/createAd", async (req, res) => {
     // ✅ Scrape product data using Puppeteer
     const { productName, productDescription, productImages } =
       await scrapeProductData(url);
-      
+
     const uploadedCloudinaryImages = [];
 
     for (const imgUrl of productImages.slice(0, 5)) {
@@ -294,14 +304,17 @@ app.post("/createAd", async (req, res) => {
       productImages: uploadedCloudinaryImages,
       adCopy: extractedAdCopy,
       headline: extractedHeadline,
-      url, // ✅ Store the original product URL
+      url,
+      adType: "scraped", // ✅ Fix here
     });
 
     await newScrapedAd.save();
     logger.info("✅ Scraped Ad saved to MongoDB:", newScrapedAd);
 
-    // Send the response back to the client
-    res.json(responseData);
+    res.json({
+      ...responseData,
+      adId: newScrapedAd._id.toString(), // ✅ frontend needs this
+    });
   } catch (error) {
     logger.error("Error generating ad:", error);
     res
