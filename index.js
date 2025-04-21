@@ -185,7 +185,7 @@ async function scrapeProductData(url) {
 }
 // Endpoint: Create Ad (via scraping)
 app.post("/createAd", async (req, res) => {
-  const { url, gender, ageGroup } = req.body;
+  const { url, gender, ageGroup, userEmail } = req.body;
 
   if (!url) {
     return res.status(400).json({ message: "No URL provided" });
@@ -306,6 +306,7 @@ app.post("/createAd", async (req, res) => {
       headline: extractedHeadline,
       url,
       adType: "scraped", // ✅ Fix here
+      userEmail, 
     });
 
     await newScrapedAd.save();

@@ -17,13 +17,17 @@ const ScrapedAdSchema = new mongoose.Schema(
     url: { type: String, required: true }, // Store the scraped URL
     userEmail: { type: String }, // Optional for scraped ads
 
+    tags: {
+      type: [String], // ✅ Tags like ['seasonal', 'promotion', 'tech']
+      default: [],
+    },
+
     feedback: {
       rating: Number,
       comment: String,
     },
 
-    adType: { type: String, default: "scraped" }, // So it's easy to query later
-
+    adType: { type: String, default: "scraped" },
     createdAt: { type: Date, default: Date.now },
   },
   {

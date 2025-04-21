@@ -27,6 +27,9 @@ router.post("/store", async (req, res) => {
       userEmail,
       productImages = [],
       adType = "manual", // default is manual
+      tone,
+      goal,
+      theme,
     } = req.body;
 
     if (!productName || !productDescription || !adCopy || !headline) {
@@ -34,6 +37,13 @@ router.post("/store", async (req, res) => {
     }
 
     const Model = adType === "scraped" ? ScrapedAd : Ad;
+
+    const tags =
+      adType === "scraped"
+        ? [tone, goal, theme, "scraped"]
+            .filter(Boolean)
+            .map((tag) => tag.trim().toLowerCase())
+        : [];
 
     const newAd = new Model({
       brandName,
@@ -46,11 +56,12 @@ router.post("/store", async (req, res) => {
       userEmail,
       productImages,
       adType,
+      ...(adType === "scraped" ? { tags } : {}),
     });
 
     await newAd.save();
 
-    cache.del("ads"); // Invalidate cache
+    cache.del("ads");
 
     res.status(201).json({
       message: "✅ Ad stored successfully",
@@ -106,9 +117,7 @@ router.post("/feedback", async (req, res) => {
   }
 
   try {
-    // ✅ Use model name string to avoid Mongoose cache issues
-    const modelName = adType === "scraped" ? "ScrapedAd" : "Ad";
-    const Model = mongoose.model(modelName);
+    const Model = adType === "scraped" ? ScrapedAd : Ad;
 
     const updatedAd = await Model.findByIdAndUpdate(
       adId,
@@ -132,6 +141,79 @@ router.post("/feedback", async (req, res) => {
   } catch (error) {
     logger.error("❌ Error saving feedback:", error);
     res.status(500).json({ message: "Error saving feedback", error: error.message });
+  }
+});
+
+/**
+ * ✅ Fetch Ads for a Specific User
+ */
+router.get("/user-history/:email", async (req, res) => {
+  const { email } = req.params;
+
+  if (!email) {
+    return res.status(400).json({ message: "Email is required" });
+  }
+
+  try {
+    const manualAds = await Ad.find({ userEmail: email }).sort({ createdAt: -1 }).lean();
+    const scrapedAds = await ScrapedAd.find({ userEmail: email }).sort({ createdAt: -1 }).lean();
+
+    res.status(200).json({ manual: manualAds, scraped: scrapedAds });
+  } catch (error) {
+    res.status(500).json({ message: "Error fetching user ads", error: error.message });
+  }
+});
+
+/**
+ * ✅ Creative Library Filtered Query
+ */
+router.post("/library", async (req, res) => {
+  const { email, filters = {}, sortBy = "newest" } = req.body;
+
+  if (!email) return res.status(400).json({ message: "Email is required" });
+
+  const buildQuery = () => {
+    const query = { userEmail: email };
+
+    ["tone", "goal", "theme"].forEach((field) => {
+      if (filters[field]) {
+        query[field] = {
+          $regex: `^${filters[field]}$`,
+          $options: "i", // case-insensitive
+        };
+      }
+    });
+
+    if (filters.minRating) {
+      query["feedback.rating"] = { $gte: filters.minRating };
+    }
+
+    if (filters.fromDate || filters.toDate) {
+      query.createdAt = {};
+      if (filters.fromDate) query.createdAt.$gte = new Date(filters.fromDate);
+      if (filters.toDate) query.createdAt.$lte = new Date(filters.toDate);
+    }
+
+    return query;
+  };
+
+  try {
+    const manualQuery = buildQuery();
+    const scrapedQuery = buildQuery();
+
+    const sortOption =
+      sortBy === "bestRated"
+        ? { "feedback.rating": -1 }
+        : sortBy === "oldest"
+        ? { createdAt: 1 }
+        : { createdAt: -1 };
+
+    const manual = await Ad.find(manualQuery).sort(sortOption).lean();
+    const scraped = await ScrapedAd.find(scrapedQuery).sort(sortOption).lean();
+
+    res.status(200).json({ manual, scraped });
+  } catch (err) {
+    res.status(500).json({ message: "Failed to fetch filtered ads", error: err.message });
   }
 });
 

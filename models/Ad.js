@@ -13,6 +13,10 @@ const AdSchema = new mongoose.Schema({
     type: [String],
     default: [],
   },
+  tags: {
+    type: [String], // ✅ Array of tags like ['funny', 'conversion', 'holiday']
+    default: [],
+  },
   feedback: {
     rating: Number,
     comment: String,
