@@ -17,6 +17,7 @@ router.get("/facebook", (req, res) => {
   const { userId, orgId, returnPath } = req.query;
 
   if (!userId || !orgId || !returnPath) {
+    console.error("❌ Missing userId, orgId, or returnPath in query:", req.query);
     return res.status(400).send("Missing userId, orgId or returnPath");
   }
 
@@ -27,7 +28,7 @@ router.get("/facebook", (req, res) => {
 
   const oauthUrl = `https://www.facebook.com/v19.0/dialog/oauth?client_id=${process.env.META_APP_ID}&redirect_uri=${REDIRECT_URI}&scope=public_profile,email&state=${state}`;
 
-  res.redirect(oauthUrl);
+  return res.redirect(oauthUrl);
 });
 
 // Step 2: Callback to receive access_token
@@ -36,7 +37,7 @@ router.get("/facebook/callback", async (req, res) => {
 
   if (!code || !state) {
     console.error("❌ Missing 'code' or 'state' in callback query:", req.query);
-    return res.status(400).send("Missing required parameters");
+    return res.status(400).send("Missing required parameters in callback");
   }
 
   let decodedState;
@@ -91,16 +92,16 @@ router.get("/facebook/callback", async (req, res) => {
 
     console.log("✅ Meta account stored for user:", clerkUserId);
 
-    // ✅ Redirect back to the returnPath page with status
+    // ✅ Redirect back to the returnPath page with success status
     const fullRedirect = `https://www.kogenie.com${returnPath}?fbConnected=success`;
-    res.redirect(fullRedirect);
+    return res.redirect(fullRedirect);
   } catch (err) {
     console.error("❌ Meta callback error:");
     console.error("  ➤ Message:", err.message);
     console.error("  ➤ Status:", err.response?.status);
     console.error("  ➤ Response Data:", err.response?.data);
 
-    res.redirect("https://www.kogenie.com?fbConnected=fail");
+    return res.redirect("https://www.kogenie.com?fbConnected=fail");
   }
 });
 
