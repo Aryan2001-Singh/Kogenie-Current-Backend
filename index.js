@@ -228,7 +228,7 @@ app.post("/createAd", async (req, res) => {
     const targetDescription = getTargetDescription(gender, ageGroup);
 
     // Prepare prompt for GPT
-    const prompt = `You are an AI that generates 5 ads based on 
+    const prompt = `You are an AI that generates ads based on 
     feature+benefit+meaning
     feature = what it is
     benefit = what it does
@@ -273,7 +273,7 @@ app.post("/createAd", async (req, res) => {
     if (!extractedHeadline || extractedHeadline === "Headline Not Generated") {
       const firstSentence = fullResponse.split(".")[0]; // Extract first sentence
       extractedHeadline =
-        firstSentence.length > 5 ? firstSentence.trim() : "Default Headline";
+        firstSentence.length > 10 ? firstSentence.trim() : "Default Headline";
     }
 
     logger.info("🟢 Extracted Headline:", extractedHeadline);
