@@ -57,6 +57,17 @@ app.use(
 );
 app.use(compression()); // Apply compression Middleware
 
+// Block all crawlers from indexing this API
+app.use((req, res, next) => {
+  res.setHeader("X-Robots-Tag", "noindex, nofollow");
+  next();
+});
+
+// ✅ Optional friendly root route
+app.get("/", (req, res) => {
+  res.send("👋 Welcome to KOgenie API. This endpoint is not meant for public use.");
+});
+
 app.get("/health", (req, res) => {
   res.status(200).json({ status: "ok", uptime: process.uptime() });
 });
