@@ -12,39 +12,61 @@ router.post("/instagram", async (req, res) => {
   }
 
   try {
+    // 1. Find the user's Meta account
     const account = await MetaAccount.findOne({ clerkUserId });
 
-    if (!account || !account.fbAccessToken || !account.igUserId) {
-      return res.status(404).json({ message: "Meta account not connected" });
+    if (
+      !account ||
+      !account.igUserId ||
+      !account.fbPageAccessToken
+    ) {
+      return res.status(404).json({
+        message: "Meta account not fully connected or missing Instagram access.",
+      });
     }
 
-    const { fbAccessToken, igUserId } = account;
+    const { igUserId, fbPageAccessToken } = account;
 
-    // Step 1: Create media container
-    const createMedia = await axios.post(
+    // 2. Step 1 - Create IG media container
+    const createMediaRes = await axios.post(
       `https://graph.facebook.com/v19.0/${igUserId}/media`,
+      null,
       {
-        image_url: imageUrl,
-        caption: caption,
-        access_token: fbAccessToken,
+        params: {
+          image_url: imageUrl,
+          caption,
+          access_token: fbPageAccessToken,
+        },
       }
     );
 
-    const creationId = createMedia.data.id;
+    const creationId = createMediaRes.data.id;
 
-    // Step 2: Publish the media
-    const publishMedia = await axios.post(
+    // 3. Step 2 - Publish media container
+    const publishMediaRes = await axios.post(
       `https://graph.facebook.com/v19.0/${igUserId}/media_publish`,
+      null,
       {
-        creation_id: creationId,
-        access_token: fbAccessToken,
+        params: {
+          creation_id: creationId,
+          access_token: fbPageAccessToken,
+        },
       }
     );
 
-    res.json({ success: true, postId: publishMedia.data.id });
+    const postId = publishMediaRes.data.id;
+
+    return res.status(200).json({
+      success: true,
+      message: "Ad successfully published to Instagram.",
+      postId,
+    });
   } catch (err) {
-    console.error("❌ Instagram publish error:", err.message);
-    res.status(500).json({ message: "Failed to publish to Instagram" });
+    console.error("❌ Instagram publish error:", err?.response?.data || err.message);
+    return res.status(500).json({
+      message: "Failed to publish to Instagram",
+      error: err?.response?.data || err.message,
+    });
   }
 });
 

@@ -4,11 +4,10 @@ const MetaAccount = require("../models/MetaAccounts");
 
 const router = express.Router();
 
-// ✅ Use correct redirect URI from .env
 const REDIRECT_URI =
   process.env.META_DEV_REDIRECT_URI || "https://api.kogenie.com/api/auth/facebook/callback";
 
-// 🧠 Utility to encode & decode state
+// Encode/Decode utility
 const encodeState = (data) => Buffer.from(JSON.stringify(data)).toString("base64");
 const decodeState = (str) => JSON.parse(Buffer.from(str, "base64").toString("utf8"));
 
@@ -23,15 +22,12 @@ router.get("/facebook", (req, res) => {
 
   const state = encodeState({ userId, orgId, returnPath });
 
-  console.log("👉 Step 1 - redirect_uri sent to Facebook:", REDIRECT_URI);
-  console.log("👉 Step 1 - encoded state:", state);
-
-  const oauthUrl = `https://www.facebook.com/v19.0/dialog/oauth?client_id=${process.env.META_APP_ID}&redirect_uri=${REDIRECT_URI}&scope=public_profile,email&state=${state}`;
+  const oauthUrl = `https://www.facebook.com/v19.0/dialog/oauth?client_id=${process.env.META_APP_ID}&redirect_uri=${REDIRECT_URI}&scope=public_profile,email,pages_show_list,pages_manage_posts,instagram_basic,instagram_content_publish&state=${state}`;
 
   return res.redirect(oauthUrl);
 });
 
-// Step 2: Callback to receive access_token
+// Step 2: Handle callback and store everything
 router.get("/facebook/callback", async (req, res) => {
   const { code, state } = req.query;
 
@@ -50,14 +46,8 @@ router.get("/facebook/callback", async (req, res) => {
 
   const { userId: clerkUserId, orgId, returnPath } = decodedState;
 
-  console.log("👉 Step 2 - Code received:", code);
-  console.log("👉 Step 2 - Clerk User ID:", clerkUserId);
-  console.log("👉 Step 2 - Org ID:", orgId);
-  console.log("👉 Step 2 - returnPath:", returnPath);
-  console.log("👉 Step 2 - redirect_uri used in token exchange:", REDIRECT_URI);
-
   try {
-    // Exchange code for access_token
+    // Step 1: Exchange code for short-lived token
     const tokenRes = await axios.get("https://graph.facebook.com/v19.0/oauth/access_token", {
       params: {
         client_id: process.env.META_APP_ID,
@@ -67,32 +57,82 @@ router.get("/facebook/callback", async (req, res) => {
       },
     });
 
-    const accessToken = tokenRes.data.access_token;
-    console.log("✅ Access Token received:", accessToken);
+    const shortLivedToken = tokenRes.data.access_token;
+    console.log("✅ Short-lived token received");
 
-    // Get user info from Facebook
+    // Step 2: Exchange for long-lived token
+    const longTokenRes = await axios.get("https://graph.facebook.com/v19.0/oauth/access_token", {
+      params: {
+        grant_type: "fb_exchange_token",
+        client_id: process.env.META_APP_ID,
+        client_secret: process.env.META_APP_SECRET,
+        fb_exchange_token: shortLivedToken,
+      },
+    });
+
+    const longLivedToken = longTokenRes.data.access_token;
+    console.log("✅ Long-lived token received");
+
+    // Step 3: Get Facebook user ID
     const userRes = await axios.get(
-      `https://graph.facebook.com/me?fields=id,name,email&access_token=${accessToken}`
+      `https://graph.facebook.com/me?fields=id,name,email&access_token=${longLivedToken}`
     );
-
     const fbUserId = userRes.data.id;
-    console.log("✅ Facebook User ID:", fbUserId);
 
-    // Save to MongoDB
+    // Step 4: Get user's Pages
+    const pagesRes = await axios.get("https://graph.facebook.com/v19.0/me/accounts", {
+      params: { access_token: longLivedToken },
+    });
+
+    const pages = pagesRes.data.data;
+    if (!pages.length) {
+      console.warn("⚠️ User has no connected Facebook Pages");
+    }
+
+    const firstPage = pages[0];
+    const fbPageId = firstPage?.id;
+    const fbPageName = firstPage?.name;
+    const fbPageAccessToken = firstPage?.access_token;
+
+    // Step 5: Get Instagram Business Account
+    let igUserId = null;
+    let igUsername = null;
+
+    if (fbPageId) {
+      const pageDetails = await axios.get(
+        `https://graph.facebook.com/v19.0/${fbPageId}?fields=connected_instagram_account&access_token=${fbPageAccessToken}`
+      );
+
+      igUserId = pageDetails.data?.connected_instagram_account?.id || null;
+
+      if (igUserId) {
+        const igDetails = await axios.get(
+          `https://graph.facebook.com/v19.0/${igUserId}?fields=username&access_token=${fbPageAccessToken}`
+        );
+        igUsername = igDetails.data?.username || null;
+      }
+    }
+
+    // Step 6: Save to DB
     await MetaAccount.findOneAndUpdate(
       { clerkUserId },
       {
         clerkUserId,
         fbUserId,
-        fbAccessToken: accessToken,
-        tokenExpiry: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000), // ~60 days
+        fbAccessToken: longLivedToken,
+        tokenExpiry: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000), // 60 days
+        fbPageId,
+        fbPageName,
+        fbPageAccessToken,
+        igUserId,
+        igUsername,
       },
       { upsert: true }
     );
 
     console.log("✅ Meta account stored for user:", clerkUserId);
 
-    // ✅ Redirect back to the returnPath page with success status
+    // Step 7: Redirect with success
     const fullRedirect = `https://www.kogenie.com${returnPath}?fbConnected=success`;
     return res.redirect(fullRedirect);
   } catch (err) {
@@ -100,7 +140,6 @@ router.get("/facebook/callback", async (req, res) => {
     console.error("  ➤ Message:", err.message);
     console.error("  ➤ Status:", err.response?.status);
     console.error("  ➤ Response Data:", err.response?.data);
-
     return res.redirect("https://www.kogenie.com?fbConnected=fail");
   }
 });
