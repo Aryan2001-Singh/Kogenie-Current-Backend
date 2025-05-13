@@ -12,18 +12,27 @@ export default async function handler(req, res) {
 
   if (method === "GET") {
     try {
+      // Try fetching from the manual ad collection
       let ad = await Ad.findById(id);
+
+      // Fallback to scraped collection if not found
       if (!ad) {
-        ad = await ScrapedAd.findById(id); // check fallback model
+        ad = await ScrapedAd.findById(id);
       }
 
-      if (!ad) return res.status(404).json({ error: "Ad not found" });
+      // If still not found, return 404
+      if (!ad) {
+        return res.status(404).json({ error: "Ad not found" });
+      }
 
-      res.status(200).json(ad);
+      // Return the found ad
+      return res.status(200).json(ad);
     } catch (error) {
-      res.status(500).json({ error: "Server error" });
+      console.error("❌ Error in /api/ads/[id]:", error);
+      return res.status(500).json({ error: "Server error" });
     }
   } else {
+    // Handle other unsupported methods
     res.setHeader("Allow", ["GET"]);
     res.status(405).end(`Method ${method} Not Allowed`);
   }
