@@ -132,8 +132,10 @@ router.get("/facebook/callback", async (req, res) => {
 
     console.log("✅ Meta account stored for user:", clerkUserId);
 
-    // Step 7: Redirect with success
-    const fullRedirect = `https://www.kogenie.com${returnPath}?fbConnected=success`;
+    // ✅ Step 7: Redirect back to app with fbConnected=success
+    const delimiter = returnPath.includes("?") ? "&" : "?";
+    const fullRedirect = `https://www.kogenie.com${returnPath}${delimiter}fbConnected=success`;
+
     return res.redirect(fullRedirect);
   } catch (err) {
     console.error("❌ Meta callback error:");
