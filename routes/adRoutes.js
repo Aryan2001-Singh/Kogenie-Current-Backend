@@ -8,6 +8,7 @@ const compression = require("compression");
 const mongoose = require("mongoose");
 const logger = require("../utils/logger");
 
+
 // ✅ Apply compression to all routes
 router.use(compression());
 
@@ -214,6 +215,25 @@ router.post("/library", async (req, res) => {
     res.status(200).json({ manual, scraped });
   } catch (err) {
     res.status(500).json({ message: "Failed to fetch filtered ads", error: err.message });
+  }
+});
+
+router.get("/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    let ad = await Ad.findById(id);
+    if (!ad) {
+      ad = await ScrapedAd.findById(id); // Fallback to scraped
+    }
+
+    if (!ad) {
+      return res.status(404).json({ message: "Ad not found" });
+    }
+
+    res.status(200).json(ad);
+  } catch (err) {
+    res.status(500).json({ message: "Server error", error: err.message });
   }
 });
 
